@@ -17,6 +17,10 @@ class ImprintedRegions:
     """
 
     def __init__(self, filename):
+        """
+        :param filename: (string) path of the file stores the
+                         information of certain imprinted regions.
+        """
         self.regions = {}
         file = open(filename, "r")
         for line in file:
@@ -78,7 +82,7 @@ class NanoporeReads:
     def getReads(self):
         """
         :return: (dictionary) information of names,
-        start and end positions of reads.
+                 start and end positions of reads.
         """
         return self.reads
 
@@ -102,13 +106,14 @@ class NanoporeReads:
                 print("This read does not exist.")
         return True
 
-    def findImprinted(self, regions, thrhld, save_file=False, savefile=None):
+    def findImprinted(self, regions, thrhld, save_file=False, file=None):
         """
         For a given sam file, find out if there is any read in the file
         is located in human genetic imprinted regions.
         :param regions: (dictionary) positions of human imprinted regions on reference genome
         :param thrhld: (float) a number between 0 and 1. portion? does not matter
         :param save_file: (bool) if want to save the result to a txt file
+        :param file: (string) path of the file to save results
         :return: (dictionary) key = imprinted reads ID
                             values: overlapped imprinted gene name
                             which end of the read located in the imprinted region
@@ -178,7 +183,7 @@ class NanoporeReads:
 
         # Save to a txt file
         if save_file:
-            file = open(savefile, "w")
+            file = open(file, "w")
             file.write(
                 "Read_ID\t\tImprinted_Gene\t\tInfo\t\tPos_On_Read"
                 "\t\tPos_On_Ref_Genome\t\tIR_Length_Threshold\n\n")
