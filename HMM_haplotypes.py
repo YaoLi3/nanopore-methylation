@@ -25,7 +25,7 @@ class HMM_haplotypes:
         self.H2 = 0
         self.heter = {}
 
-    def load_vcf(self, file):
+    def loadVcf(self, file):
         """
 
         :param file:
@@ -54,4 +54,4 @@ class HMM_haplotypes:
 
 if __name__ == "__main__":
     test = HMM_haplotypes()
-    tt = test.load_vcf("chr19.vcf")
+    tt = test.loadVcf("chr19.vcf")
