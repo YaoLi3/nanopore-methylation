@@ -17,9 +17,8 @@ def imprinted_raw(base):
         # the read is imprinted
         gene_name, status, read_pos, ref_pos = o[rid]
         # extract raw sigal
-        seg_raw, seg_fastq = get_raw_segment("shares/coin/yao.li/data/basecall_pass/{}.fast5".format(base), 100, 200)
-        raw = seg_raw[read_pos[0]: read_pos[1]]
-        return raw, seg_fastq
+        seg_raw, seg_fastq = get_raw_segment("shares/coin/yao.li/data/basecall_pass/{}.fast5".format(base), read_pos[0], read_pos[1])
+        return seg_raw, seg_fastq
     except KeyError:  # if the read does not overlapped with any human imprinted region
         print("key error, read does not qualified")
         return
