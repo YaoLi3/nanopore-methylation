@@ -23,6 +23,9 @@ def imprinted_raw(base):
     except KeyError:  # if the read does not overlapped with any human imprinted region
         print("key error, read does not qualified")
         return
+    except IndexError:
+        print("Raw signal does not have adequde amount of data.")
+        return
 
 
 if __name__ == "__main__":
@@ -31,7 +34,7 @@ if __name__ == "__main__":
     imprinted_regions = IR.getRegions()
 
     # Retrieve Nanopore reads
-    DATA = NanoporeReads("/shares/coin/yao.li/minimap2/merged.sam", 19)
+    DATA = NanoporeReads("/shares/coin/yao.li/minimap2/merged.sam", "19")
     DATA.getReads()  # 45946 reads
     o = DATA.findImprinted(imprinted_regions, 0, True, "find_imprinted_result.txt")
 
