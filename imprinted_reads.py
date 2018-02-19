@@ -45,15 +45,23 @@ class NanoporeReads:
     From one sam file.
     """
 
-    def __init__(self, samfile, chrom="chr"):
+    def __init__(self, samfile, chrom):
         """
         Open a sam file, extract data of reads
         mapped to the right chromosome on reference genome.
         :param samfile: (string) path of external sam file
-        :param chrom: (string) chromosome name(s)
+        :param chrom: (string) chromosome number
         """
-        self.samfile = samfile  # store filename as an attribute
-        self.chrom = chrom
+        self.samfile = samfile  # store filename as an attribute]
+        try:
+            if 1 <= int(chrom) <= 22:
+                self.chrom = "chr" + chrom
+        except ValueError:
+            if chrom in ["XxYx"]:
+                self.chrom = "chr" + chrom.lower()
+            else:
+                raise Exception ("Invalid chromosome number.")
+
         file = open(self.samfile, "r")
         self.data = {}
         self.reads = {}
@@ -69,8 +77,7 @@ class NanoporeReads:
                 seq_len = len(line[9])
                 end = (start + seq_len)
                 rname = line[2]
-                #if rname = self.chrom
-                if rname == "chr19":  # only extract reads mapped to chr19 (ref)
+                if rname == self.chrom:
                     self.reads[line[0]] = (start, end, rname)
         file.close()
 
@@ -244,14 +251,13 @@ def extract_fastq(name):
     f = h5py.File(name, "r")
     seq = f['Analyses']['Basecall_1D_001']['BaseCalled_template']['Fastq'].value
     if seq != "":
-        fastq_file = open("%s.fastq" % name, "wb")
+        fastq_file = open("/shares/coin/yao.li/im_fastq/%s.fastq" % name, "wb")
         fastq_file.write(seq)
         fastq_file.close()
 
     seq = []
-    f = open("%s.fastq" % name, "r")
+    f = open("/shares/coin/yao.li/im_fastq/%s.fastq" % name, "r")
     for line in f:
         seq.append(line)
     f.close()
     return seq
-
