@@ -3,6 +3,7 @@ __author__ = Yao LI
 __email__ = liyaoo1012@163.com
 __date__ = 08/02/2018
 """
+import h5py
 import numpy as np
 import editdistance
 
@@ -134,7 +135,6 @@ class NanoporeReads:
             end = int(regions[j][1])
             r_range = range(start, end + 1)
             chrom = regions[j][2]  # chr is just a (str)number
-
             for i in self.reads:  # i = read ID
                 pos1, pos2, rname = self.reads[i]  # pos1 & pos2 are int
                 if 0 <= thrhld <= 1:
@@ -142,7 +142,6 @@ class NanoporeReads:
                 else:
                     print("t is a float between 0 and 1.")
                     return
-
                 if chrom == rname.replace("chr", ""):
                     if pos1 in r_range and pos2 in r_range:
                         b += 1
@@ -180,7 +179,6 @@ class NanoporeReads:
                             self.overlap[i] = [j, "end pos",
                                                (pos2 - pos1 - l2, pos2 - pos1),
                                                (start, start + l2), thrhld]
-
         # Save to a txt file
         if save_file:
             file = open(file, "w")
@@ -213,6 +211,9 @@ class NanoporeReads:
         """
         return self.overlap
 
+    def searchIR(self, ID):
+        return self.overlap[ID]
+
     def getMatrix(self):
         """
         Calculate the minimum edit distance between two reads.
@@ -234,22 +235,22 @@ class NanoporeReads:
             print("The list of imprinted reads is empty.")
 
 
-#############
-#  Testing  #
-#############
-if __name__ == "__main__":
-    # Get human imprinted regions
-    IR = ImprintedRegions("data/mart_export.txt")
-    imprinted_regions = IR.getRegions()
+def extract_fastq(name):
+    """
+    Extract fastq sequence from a fast5 file.
+    :param name: fast5 file name
+    :return: (list) a fastq sequence
+    """
+    f = h5py.File(name, "r")
+    seq = f['Analyses']['Basecall_1D_001']['BaseCalled_template']['Fastq'].value
+    if seq != "":
+        fastq_file = open("%s.fastq" % name, "wb")
+        fastq_file.write(seq)
+        fastq_file.close()
 
-    # Retrieve Nanopore reads
-    DATA = NanoporeReads("data/merged.sam")
-    aa = DATA.getReads()  # 45946 reads
-
-    # Discover reads that are mapped to human imprinted regions
-    o = DATA.findImprinted(imprinted_regions, 0, True, "find_imprinted_result.txt")
-
-    # Calculate pairwise edit distance matrix
-    matrix = DATA.getMatrix()
-    np.savetxt("distance_matrix.txt", matrix)
-    np.save("dist_matrix.npy", matrix)
+    seq = []
+    f = open("%s.fastq" % name, "r")
+    for line in f:
+        seq.append(line)
+    f.close()
+    return seq

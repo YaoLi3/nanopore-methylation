@@ -16,13 +16,13 @@ def get_raw_segment(fast5_fn,start_base_idx, end_base_idx, basecall_group = 'Bas
     start_base_idx: start index of the sequence (0-based)
     end_base_idx: end index of the sequence (the index is included)
     basecall_group: group name to search for base information.
-    basecall_subgroup: sub group name to search for base information.
+    basecall_subgroup: sub grou#!p name to search for base information.
     
     e.g.
         get_raw_segment('test.fast5', 0, 10)
         Will return the signal corresponded to the 0-10 bases(The 0th and 10th base are both included.)
         
-    
+
     """
     with h5py.File(fast5_fn,'r') as root:
         base = root['Analyses/Basecall_1D_000/BaseCalled_template']
@@ -40,7 +40,7 @@ def get_raw_segment(fast5_fn,start_base_idx, end_base_idx, basecall_group = 'Bas
         for event in events:
             pos_idx += event[5]
             pos.append(pos_idx)
-        start_idx = next(x[0] for x in enumerate(pos) if x[1] >= start_base_idx)
+        start_idx = next(x[0] for x in enumerate(pos) if xcd[1] >= start_base_idx)
         end_idx = next(x[0]-1 for x in enumerate(pos) if x[1] > end_base_idx)
         if start_time is None:
             raw_start = events[start_idx][1]
@@ -54,5 +54,5 @@ def get_raw_segment(fast5_fn,start_base_idx, end_base_idx, basecall_group = 'Bas
 if __name__=="__main__":
     
     seg_raw,seg_fastq = get_raw_segment('/home/yaoli/PycharmProjects/project/data/PLSP61583_20160920_FNFAB390088_MN17048_sequencing_run_Hum_94_62579_ch268_read765_strand.fast5',100,200)
-    print(seg_raw)
-    print(seg_fastq)
+    np.save("raw_signal.npy", (seg_raw, seg_fastq))
+    print(np.load("data/raw_signal.npy"))
