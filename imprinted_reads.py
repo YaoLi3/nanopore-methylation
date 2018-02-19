@@ -254,3 +254,4 @@ def extract_fastq(name):
         seq.append(line)
     f.close()
     return seq
+
