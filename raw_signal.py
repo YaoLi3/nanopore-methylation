@@ -9,23 +9,18 @@ from h5utils import *
 from imprinted_reads import *
 
 
-def if_imprinted(fast5_file):
+def imprinted_raw(fast5_file):
     # get the read id
     rid = extract_fastq(fast5_file)[0].strip().split()[0]
-    # search to find if the read is overlapped with human imprinted regions
     try:
         # the read is imprinted
         gene_name, status, read_pos, ref_pos = o[rid]
-        print(gene_name)
-        print(status)
-        print(read_pos)
-        print(ref_pos)
         # extract raw sigal
         seg_raw, seg_fastq = get_raw_segment(fast5_file, 100, 200)
         raw = seg_raw[read_pos[0]: read_pos[1]]
         return raw, seg_fastq
     except KeyError:  # if the read does not overlapped with any human imprinted region
-        print("keyerror, read does not qualified")
+        print("key error, read does not qualified")
         return
 
 
@@ -45,7 +40,7 @@ if __name__ == "__main__":
         if filename.endswith(".fast5"):
             try:
                 name = "/shares/coin/yao.li/data/basecall_pass/" + filename
-                raw, fastq = if_imprinted(name)
+                raw, fastq = imprinted_raw(name)
                 np.save("/shares/coin/yao.li/raw_signal/" + filename, (raw, fastq))
             except KeyError:
                 print("this file does not have basecalled_template")
