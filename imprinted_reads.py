@@ -1,11 +1,12 @@
 """
 __author__ = Yao LI
-__email__ = liyaoo1012@163.com
-__date__ = 08/02/2018
+__email__ = yao.li.binf@gmail.com
+__date__ = 24/01/2018
 """
 import h5py
 import numpy as np
 import editdistance
+import re
 
 
 #############################
@@ -60,7 +61,7 @@ class NanoporeReads:
             if chrom in ["XxYx"]:
                 self.chrom = "chr" + chrom.lower()
             else:
-                raise Exception ("Invalid chromosome number.")
+                raise Exception("Invalid chromosome number.")
 
         file = open(self.samfile, "r")
         self.data = {}
@@ -219,6 +220,10 @@ class NanoporeReads:
         return self.overlap
 
     def searchIR(self, ID):
+        """
+        :param ID:
+        :return:
+        """
         return self.overlap[ID]
 
     def getMatrix(self):
@@ -242,22 +247,47 @@ class NanoporeReads:
             print("The list of imprinted reads is empty.")
 
 
-def extract_fastq(name):
+######################
+# Handle Fastq files #
+######################
+def extractFastq(fast5_fn):
     """
     Extract fastq sequence from a fast5 file.
-    :param name: fast5 file name
-    :return: (list) a fastq sequence
+    :param fast5_fn: fast5 file name
+    :return seq: (string) fastq sequence in one string
     """
-    f = h5py.File(name, "r")
+    f = h5py.File(fast5_fn, "r")
     seq = f['Analyses']['Basecall_1D_001']['BaseCalled_template']['Fastq'].value
     if seq != "":
-        fastq_file = open("/shares/coin/yao.li/im_fastq/%s.fastq" % name, "wb")
+        fastq_file = open("/shares/coin/yao.li/im_fastq/%s.fastq"
+                          % fast5_fn.replace(".fast5", ""), "wb")
         fastq_file.write(seq)
         fastq_file.close()
+        return seq
 
-    seq = []
-    f = open("/shares/coin/yao.li/im_fastq/%s.fastq" % name, "r")
-    for line in f:
-        seq.append(line)
-    f.close()
-    return seq
+
+def readFastq(fastq_fn):
+    """
+    Read a fastq file and return the data
+    :param fastq_fn:
+    :return: seq: (list) a list contains four lines of a fastq file
+    """
+    try:
+        f = open(fastq_fn, "r")
+        seq = []
+        for line in f:
+            seq.append(line)
+        f.close()
+        return seq
+    except IOError:
+        print("File not found.")
+
+
+def getBasename(filename):
+    """
+    Get basename for a file contains format extension.
+    :param filename: (string) filename/path
+    :return: basename of a file without path or extension
+    """
+    filename = re.split("/,", filename)
+    return filename[-2]

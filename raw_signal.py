@@ -1,18 +1,23 @@
 """
 __author__ = Yao LI
-__email__ = liyaoo1012@163.com
+__email__ = yao.li.binf@gmail.com
 __date__ = 07/02/2018
-14/02/18
 """
-import sys
 import os
 from h5utils import *
 from imprinted_reads_less import *
 
 
 def imprinted_raw(fast5):
+    """
+    Found if the fast5 file contains an imprinted read,
+    and extract its raw signal value in imprinted regions.
+    :param fast5: (string) fast5 file name
+    :return: (tuple) raw signal and fastq sequence
+              None, if read is not found in any imprinted region.
+    """
     # get the read id
-    rid = extract_fastq(fast5)[0].strip().split()[0]
+    rid = extract_fastq(fast5)[0].strip().split()[0]#need to change this!!!!
     try:
         # the read is imprinted
         gene_name, status, read_pos, ref_pos = o[rid]
@@ -41,7 +46,7 @@ if __name__ == "__main__":
             try:
                 path = "/shares/coin/yao.li/data/basecall_pass/"
                 raw, fastq = imprinted_raw(path+basename)
-                np.save("/shares/coin/yao.li/raw_signal/{}.npy".format(basename.replace(".fast5")), (raw, fastq))
+                np.save("/shares/coin/yao.li/raw_signal/{}.npy".format(basename.replace(".fast5", "")), (raw, fastq))
             except KeyError:
                 print("this file does not have basecalled_template")
                 continue

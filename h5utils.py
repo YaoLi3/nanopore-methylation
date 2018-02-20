@@ -9,7 +9,9 @@ Created on Tue Feb 13 16:04:52 2018
 import h5py
 import numpy as np
 
-def get_raw_segment(fast5_fn,start_base_idx, end_base_idx, basecall_group = 'Basecall_1D_000',basecall_subgroup = 'BaseCalled_template'):
+
+def get_raw_segment(fast5_fn, start_base_idx, end_base_idx, basecall_group='Basecall_1D_000',
+                    basecall_subgroup='BaseCalled_template'):
     """
     Get the raw signal segment given the start and end index of the sequence.
     fast5_fn: input fast5 file name.
@@ -24,10 +26,10 @@ def get_raw_segment(fast5_fn,start_base_idx, end_base_idx, basecall_group = 'Bas
         
 
     """
-    with h5py.File(fast5_fn,'r') as root:
+    with h5py.File(fast5_fn, 'r') as root:
         base = root['Analyses/Basecall_1D_000/BaseCalled_template']
         fastq = base['Fastq'].value.split()[2]
-        seg =fastq[start_base_idx:end_base_idx]    
+        seg = fastq[start_base_idx:end_base_idx]
         event_h = base['Events']
         events = event_h.value
         raw_h = list(root['/Raw/Reads'].values())
@@ -41,12 +43,12 @@ def get_raw_segment(fast5_fn,start_base_idx, end_base_idx, basecall_group = 'Bas
             pos_idx += event[5]
             pos.append(pos_idx)
         start_idx = next(x[0] for x in enumerate(pos) if x[1] >= start_base_idx)
-        end_idx = next(x[0]-1 for x in enumerate(pos) if x[1] > end_base_idx)
+        end_idx = next(x[0] - 1 for x in enumerate(pos) if x[1] > end_base_idx)
         if start_time is None:
             raw_start = events[start_idx][1]
             raw_end = events[end_idx][1]
         else:
-            raw_start = int((events[start_idx][1]-start_time)/0.00025)
-            raw_end = int((events[end_idx][1]-start_time)/0.00025)
+            raw_start = int((events[start_idx][1] - start_time) / 0.00025)
+            raw_end = int((events[end_idx][1] - start_time) / 0.00025)
         seg_raw = raw[raw_start:raw_end]
     return seg_raw, seg
