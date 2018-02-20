@@ -50,7 +50,3 @@ def get_raw_segment(fast5_fn,start_base_idx, end_base_idx, basecall_group = 'Bas
             raw_end = int((events[end_idx][1]-start_time)/0.00025)
         seg_raw = raw[raw_start:raw_end]
     return seg_raw, seg
-        
-if __name__=="__main__":
-    seg_raw,seg_fastq = get_raw_segment('/home/yaoli/PycharmProjects/project/data/PLSP61583_20160920_FNFAB390088_MN17048_sequencing_run_Hum_94_62579_ch268_read765_strand.fast5',100,200)
-    print(seg_raw[3: 9])

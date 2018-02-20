@@ -7,24 +7,22 @@ __date__ = 07/02/2018
 import sys
 import os
 from h5utils import *
-from imprinted_reads import *
+from imprinted_reads_less import *
 
 
-def imprinted_raw(base):
+def imprinted_raw(fast5):
     # get the read id
-    rid = extract_fastq(base)[0].strip().split()[0]
+    rid = extract_fastq(fast5)[0].strip().split()[0]
     try:
         # the read is imprinted
         gene_name, status, read_pos, ref_pos = o[rid]
-        # extract raw sigal
-        seg_raw, seg_fastq = get_raw_segment("shares/coin/yao.li/data/basecall_pass/{}.fast5".format(base), read_pos[0], read_pos[1])
+        # extract raw signal
+        seg_raw, seg_fastq = get_raw_segment(fast5, read_pos[0], read_pos[1])
         return seg_raw, seg_fastq
     except KeyError:  # if the read does not overlapped with any human imprinted region
         print("key error, read does not qualified")
-        return
     except IndexError:
-        print("Raw signal does not have adequde amount of data.")
-        return
+        print("Raw signal does not have adequate amount of data.")
 
 
 if __name__ == "__main__":
@@ -41,10 +39,14 @@ if __name__ == "__main__":
     for basename in os.listdir("/shares/coin/yao.li/data/basecall_pass/"):
         if basename.endswith(".fast5"):
             try:
-                raw, fastq = imprinted_raw(basename.replace(".fast5", ""))
+                path = "/shares/coin/yao.li/data/basecall_pass/"
+                raw, fastq = imprinted_raw(path+basename)
                 np.save("/shares/coin/yao.li/raw_signal/{}.npy".format(basename.replace(".fast5")), (raw, fastq))
             except KeyError:
                 print("this file does not have basecalled_template")
+                continue
+            except TypeError:
+                print("Read not found in imprinted regions.")
                 continue
             except StopIteration:
                 print("This is the end.")
