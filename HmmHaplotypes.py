@@ -36,9 +36,6 @@ def loadVCF(file):
     """
     try:
         f = open(file, "r")
-    except IOError:
-        raise IOError("This vcf file is not available.")
-    try:
         heter = {}
         cnt = 0
         for line in f:
@@ -46,13 +43,17 @@ def loadVCF(file):
                 chrom, pos, id, ref, alt, qual, filter, info, format, na = line.strip().split("\t")
                 h1, h2 = na.split("|")
                 if chrom == "chr19" and h1 != h2:
-                    heter[cnt] = (chrom, pos, id, ref, alt, qual, filter, info, format, na)
+                    heter[cnt] = (chrom, pos, id, ref, alt, qual, filter, info, format, h1, h2)
                     cnt += 1
+        f.close()
+        return heter
     except ValueError:
         raise RuntimeError("Not the right values to unpack.")
-    return heter
+    except IOError:
+        raise IOError("This vcf file is not available.")
 
 
 if __name__ == "__main__":
-    test = HmmHaplotypes()
-    fi = loadVCF("chr19.vcf")
+    snp_data = loadVCF("data/chr19.vcf")
+    for i in snp_data:
+        print(snp_data[i])
