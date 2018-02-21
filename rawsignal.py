@@ -3,18 +3,17 @@ __author__ = Yao LI
 __email__ = yao.li.binf@gmail.com
 __date__ = 07/02/2018
 """
-import os
 from h5utils import *
-from imprinted_reads_less import *
+from nanoporereads import *
 from handleFiles import *
+from imprintedregions import *
 
 if __name__ == "__main__":
     DATA = NanoporeReads("/shares/coin/yao.li/minimap2/merged.sam", "19")
     DATA.getReads()  # 45946 reads
     o = DATA.findImprinted(ImprintedRegions
                            ("/shares/coin/yao.li/data/mart_export.txt").getRegions(),
-                           0, True, "find_imprinted_result.txt")
-
+                           0, False, "find_imprinted_result.txt")
 
     f = open("results.txt", "w")
     # Extract raw signal from fast5 files
