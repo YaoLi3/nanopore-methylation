@@ -7,6 +7,7 @@ import h5py
 import numpy as np
 import editdistance
 import re
+import os
 
 
 #############################
@@ -245,49 +246,3 @@ class NanoporeReads:
             return dist_matrix
         else:
             print("The list of imprinted reads is empty.")
-
-
-######################
-# Handle Fastq files #
-######################
-def extractFastq(fast5_fn):
-    """
-    Extract fastq sequence from a fast5 file.
-    :param fast5_fn: fast5 file name
-    :return seq: (string) fastq sequence in one string
-    """
-    f = h5py.File(fast5_fn, "r")
-    seq = f['Analyses']['Basecall_1D_001']['BaseCalled_template']['Fastq'].value
-    if seq != "":
-        fastq_file = open("/shares/coin/yao.li/im_fastq/%s.fastq"
-                          % fast5_fn.replace(".fast5", ""), "wb")
-        fastq_file.write(seq)
-        fastq_file.close()
-        return seq
-
-
-def readFastq(fastq_fn):
-    """
-    Read a fastq file and return the data
-    :param fastq_fn:
-    :return: seq: (list) a list contains four lines of a fastq file
-    """
-    try:
-        f = open(fastq_fn, "r")
-        seq = []
-        for line in f:
-            seq.append(line)
-        f.close()
-        return seq
-    except IOError:
-        print("File not found.")
-
-
-def getBasename(filename):
-    """
-    Get basename for a file contains format extension.
-    :param filename: (string) filename/path
-    :return: basename of a file without path or extension
-    """
-    filename = re.split("/,", filename)
-    return filename[-2]
