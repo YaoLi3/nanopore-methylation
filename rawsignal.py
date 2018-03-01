@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 """
 __author__ = Yao LI
 __email__ = yao.li.binf@gmail.com
@@ -5,31 +6,44 @@ __date__ = 07/02/2018
 """
 from h5utils import *
 from nanoporereads import *
-from handleFiles import *
+from handlefiles import *
 from imprintedregions import *
+
+
+def get_raw_dirc(directory, savepath, ir_pos):
+    """
+    :param directory: (string) the folder of fast5 files
+    :param qpath: (string) path of fastq files
+    :param savepath: (string) path of output numpy files
+    :param ir_pos: (dictionary) a NanoporeReads overlap dict
+    :return: (dict) raw signal and its fastq sequence
+    """
+    raw_signal = {}
+    # Extract raw signal from fast5 files
+    for fst5 in os.listdir(directory):
+        try:
+            if fst5.endswith(".fast5"):
+                sid = getID(directory+fst5)
+                if sid in ir_pos:
+                    poses = ir_pos[sid][2]
+                    raw, fastq = get_raw_segment(directory+fst5, poses[0], poses[1])
+                    raw_signal[fst5] = (raw, fastq)
+                    np.save(savepath + fst5.replace(".fast5", ".npy"), (raw, fastq))
+        except KeyError:
+            continue
+        except TypeError:
+            continue
+        except StopIteration:
+            print("This is the end.")
+    return raw_signal
+
 
 if __name__ == "__main__":
     DATA = NanoporeReads("/shares/coin/yao.li/minimap2/merged.sam", "19")
-    DATA.getReads()  # 45946 reads
-    o = DATA.findImprinted(ImprintedRegions
-                           ("/shares/coin/yao.li/data/mart_export.txt").getRegions(),
+    DATA.get_reads()  # 45946 reads
+    o = DATA.find_imprinted(ImprintedRegions
+                           ("/shares/coin/yao.li/data/ip_gene_pos.txt").get_regions(),
                            0, False, "find_imprinted_result.txt")
-
-    f = open("results.txt", "w")
-    # Extract raw signal from fast5 files
-    for fst5 in os.listdir("/shares/coin/yao.li/data/basecall_pass/"):
-        if fst5.endswith(".fast5"):
-            try:
-                qpath = "/shares/coin/yao.li/data/fastq/"
-                poses = o[getID(searchFastq(fst5, qpath))]
-                raw, fastq = get_raw_segment(fst5, poses[0], poses[1])
-                np.save("/shares/coin/yao.li/raw_signal/{}.npy".format(fst5.replace(".fast5", "")), (raw, fastq))
-            except KeyError:
-                f.write("this file does not have basecalled_template")
-                continue
-            except TypeError:
-                f.write("Read not found in imprinted regions.")
-                continue
-            except StopIteration:
-                f.write("This is the end.")
-    f.close()
+    d = get_raw_dirc("/shares/coin/yao.li/data/basecall_pass/",
+                     "/shares/coin/yao.li/signal/",
+                     o)

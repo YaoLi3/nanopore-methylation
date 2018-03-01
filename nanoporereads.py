@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 """
 __author__ = Yao LI
 __email__ = yao.li.binf@gmail.com
@@ -6,6 +7,7 @@ __date__ = 08/02/2018
 import h5py
 import numpy as np
 import editdistance
+from imprintedregions import *
 
 
 ####################
@@ -46,34 +48,35 @@ class NanoporeReads:
                 self.data[line[0]] = line[1:]
                 # calculate the region of a read mapped on to the reference genome
                 start = int(line[3])
-                seq_len = len(line[9])
+                seq = line[9]
+                seq_len = len(seq)
                 end = (start + seq_len)
                 rname = line[2]
                 if rname == self.chrom:
-                    self.reads[line[0]] = (start, end, rname)
+                    self.reads[line[0]] = (start, end, rname, seq)
         file.close()
 
-    def getData(self):
+    def get_data(self):
         """
         :return: (dictionary) all data from the sam file as a dictionary.
         """
         return self.data
 
-    def getReads(self):
+    def get_reads(self):
         """
         :return: (dictionary) information of names,
                  start and end positions of reads.
         """
         return self.reads
 
-    def getSequence(self, read_name):
+    def get_sequence(self, read_name):
         """
         :param read_name: (string) Nanopore basecalling ID
         :return: (string) sequence of the given read
         """
         return self.data[read_name][8]
 
-    def searchReads(self, reads_names):
+    def search_reads(self, reads_names):
         """
         Search reads based on their given QNAMEs.
         :param reads_names: (string) Nanopore basecalling ID
@@ -86,7 +89,7 @@ class NanoporeReads:
                 print("This read does not exist.")
         return True
 
-    def findImprinted(self, regions, thrhld, save_file=False, file=None):
+    def find_imprinted(self, regions, thrhld, save_file=False, file=None):
         """
         For a given sam file, find out if there is any read in the file
         is located in human genetic imprinted regions.
@@ -115,7 +118,7 @@ class NanoporeReads:
             r_range = range(start, end + 1)
             chrom = regions[j][2]  # chr is just a (str)number
             for i in self.reads:  # i = read ID
-                pos1, pos2, rname = self.reads[i]  # pos1 & pos2 are int
+                pos1, pos2, rname, seq = self.reads[i]  # pos1 & pos2 are int
                 if 0 <= thrhld <= 1:
                     min_coverage = thrhld * (pos2 - pos1)
                 else:
@@ -134,7 +137,7 @@ class NanoporeReads:
                             self.overlap[i] = [j, "both ends",
                                                (1, l + 1),
                                                (pos1, pos2),
-                                               thrhld]
+                                               thrhld, seq]
                     elif pos1 in r_range and pos2 not in r_range:
                         s += 1
                         cnt += 1
@@ -146,7 +149,7 @@ class NanoporeReads:
                             self.overlap[i] = [j, "start pos",
                                                (1, l1 + 1),
                                                (end - l1, end),
-                                               thrhld]
+                                               thrhld, seq]
                     elif pos2 in r_range and pos1 not in r_range:
                         e += 1
                         cnt += 1
@@ -157,19 +160,20 @@ class NanoporeReads:
                             gene[j] = c
                             self.overlap[i] = [j, "end pos",
                                                (pos2 - pos1 - l2, pos2 - pos1),
-                                               (start, start + l2), thrhld]
+                                               (start, start + l2), thrhld, seq]
         # Save to a txt file
         if save_file:
             file = open(file, "w")
             file.write(
                 "Read_ID\t\tImprinted_Gene\t\tInfo\t\tPos_On_Read"
-                "\t\tPos_On_Ref_Genome\t\tIR_Length_Threshold\n\n")
+                "\t\tPos_On_Ref_Genome\t\tIR_Length_Threshold\t\tSequence\n\n")
             for id in self.overlap:
-                file.write("{}\t{}\t{}\t{}\t{}\t{}\n\n".format(id, self.overlap[id][0],
+                file.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\n\n".format(id, self.overlap[id][0],
                                                                self.overlap[id][1],
                                                                self.overlap[id][2],
                                                                self.overlap[id][3],
-                                                               self.overlap[id][4]))
+                                                               self.overlap[id][4],
+                                                               self.overlap[id][5]))
             file.write("\n{} reads pass the threshold.\n".format(n))
             for name in gene:
                 file.write("{} in gene {}\n".format(gene[name], name))
@@ -184,16 +188,16 @@ class NanoporeReads:
 
         return self.overlap
 
-    def getImprintedReads(self):
+    def get_imprinted_reads(self):
         """
         :return: (list) imprinted Nanopore reads IDs
         """
         return self.overlap
 
-    def searchIR(self, ID):
+    def search_imprinted_read(self, ID):
         return self.overlap[ID]
 
-    def getMatrix(self):
+    def get_matrix(self):
         """
         Calculate the minimum edit distance between two reads.
         :return: (numpy narray) pairwise distance matrix
@@ -202,10 +206,10 @@ class NanoporeReads:
             dist_matrix = np.zeros((len(self.overlap), len(self.overlap)))
             a = 0
             for i in self.overlap:
-                seq1 = self.getSequence(i)
+                seq1 = self.get_sequence(i)
                 b = 0
                 for j in self.overlap:
-                    seq2 = self.getSequence(j)
+                    seq2 = self.get_sequence(j)
                     dist_matrix[a, b] = editdistance.eval(seq1, seq2)
                     b += 1
                 a += 1

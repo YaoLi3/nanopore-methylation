@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 """
 __author__ = Yao LI
 __email__ = yao.li.binf@gmail.com
@@ -26,7 +27,7 @@ class ImprintedRegions:
             self.regions[line[0]] = line[1:]
         file.close()
 
-    def getRegions(self):
+    def get_regions(self):
         """
         :return: (dictionary) key = gene names
         """
