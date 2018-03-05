@@ -10,9 +10,6 @@ import editdistance
 from imprintedregions import *
 
 
-####################
-#  Nanopore reads  #
-####################
 class NanoporeReads:
     """
     Discover reads that are overlapped with human imprinted regions.
@@ -161,7 +158,7 @@ class NanoporeReads:
                             self.overlap[i] = [j, "end pos",
                                                (pos2 - pos1 - l2, pos2 - pos1),
                                                (start, start + l2), thrhld, seq]
-        # Save to a txt file
+        # Save results into a txt file
         if save_file:
             file = open(file, "w")
             file.write(

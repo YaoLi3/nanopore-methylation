@@ -15,4 +15,5 @@ def raw_signal_clustering(raw_signals):
     Cluster nanopore sequencing raw signal into two clusters:
     methylation or non-methylation groups
     """
-    clusters = ["me", "nonme"]
+    CLUSTERS = ["Methylation", "Non-methylation"]
+    self.data = raw_signals

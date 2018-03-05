@@ -12,12 +12,22 @@ from hmm import *
 #  Testing  #
 #############
 if __name__ == "__main__":
-    DATA = NanoporeReads("data/merged.sam", "19")
-    DATA.get_reads()  # 45946 reads
-    o = DATA.find_imprinted(ImprintedRegions
-                            ("data/mart_export.txt").get_regions(),
-                            0, False, "find_imprinted_result.txt")
+    """Nanopore reads data"""
+    # DATA = NanoporeReads("data/merged.sam", "19")
+    # DATA.get_reads()  # 45946 reads
+    # overlap = DATA.find_imprinted(ImprintedRegions("data/ip_gene_pos.txt")
+    # .get_regions(),0, True,
+    # "find_imprinted_result.txt") # 375 reads
 
-    snp = process_data(load_VCF("data/chr19.vcf"))
-    h1, h2 = split_data(split_data(snp, 0.8)[0], 0.5)
-    data = find_read_snp("find_imprinted_result.txt", snp)
+    """Human SNPs data"""
+    SNP = SNPs()
+    snp_data = SNP.load_VCF("data/chr19.vcf")
+    snp = SNP.get_snp()  # list (pos, ref, alt, h1, h2)
+    snp_reads = find_snps_in_read("find_imprinted_result.txt", snp_data)  # need to change this function
+
+    """train HMM"""
+    hmm = HmmHaplotypes(snp_data, ["Parental", "Maternal"], ["A", "T", "G", "C"])
+    hmm.initialize()
+    hmm.train_model(snp_reads)
+
+    """methylation"""

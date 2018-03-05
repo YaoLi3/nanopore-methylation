@@ -36,14 +36,3 @@ def get_raw_dirc(directory, savepath, ir_pos):
         except StopIteration:
             print("This is the end.")
     return raw_signal
-
-
-if __name__ == "__main__":
-    DATA = NanoporeReads("/shares/coin/yao.li/minimap2/merged.sam", "19")
-    DATA.get_reads()  # 45946 reads
-    o = DATA.find_imprinted(ImprintedRegions
-                           ("/shares/coin/yao.li/data/ip_gene_pos.txt").get_regions(),
-                           0, False, "find_imprinted_result.txt")
-    d = get_raw_dirc("/shares/coin/yao.li/data/basecall_pass/",
-                     "/shares/coin/yao.li/signal/",
-                     o)
