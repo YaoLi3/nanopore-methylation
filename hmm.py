@@ -155,19 +155,22 @@ class HmmHaplotypes:
     using SNPs inside reads as tags.
     """
 
-    def __init__(self, snps, states, obs):
+    def __init__(self, snps, reads, states, obs):
         """
         :param snps:
         :param states:
         :param obs:
         """
         self.SNPs = snps
+        self.READS = reads
         self.STATES = states
         self.OBSERVATIONS = obs
         self.transition = {}
         self.emission = {}
         self.M = []
         self.P = []
+        self.old_transition = {}
+        self.old_emission = {}
 
     def init_emission(self):
         """
@@ -199,7 +202,7 @@ class HmmHaplotypes:
         Parameter B: emission probability.
         Parameter pi ? from split_data function?
         """
-        self.M, self.P = split_data(self.SNPs, 0.5)
+        self.M, self.P = split_data(self.READS, 0.5)
         self.transition = {"Parental": {"P": 1, "M": 0}, "Maternal": {"P": 0, "M": 1}}
         self.init_emission()
 
@@ -276,7 +279,10 @@ class HmmHaplotypes:
         or the assignment of each read stops changing,
         stop iteration. The training of the model is complete.
         """
-        return False
+        if self.old_emission == self.emission: # when model parameter stops changing
+            return True
+        else:
+            return False
 
     def train_model(self, reads):
         """in case of an infinite loop"""

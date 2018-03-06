@@ -26,7 +26,8 @@ if __name__ == "__main__":
     snp_reads = find_snps_in_read("find_imprinted_result.txt", snp_data)  # need to change this function
 
     """train HMM"""
-    hmm = HmmHaplotypes(snp_data, ["Parental", "Maternal"], ["A", "T", "G", "C"])
+    training, testing = split_data(snp_reads, 0.8)
+    hmm = HmmHaplotypes(snp_data, training, ["Parental", "Maternal"], ["A", "T", "G", "C"])
     hmm.initialize()
     hmm.train_model(snp_reads)
 
