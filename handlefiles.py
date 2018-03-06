@@ -28,7 +28,6 @@ def extract_fastq(fast5_fn):
 
 def get_fast5_id(fast5_fn):
     """
-
     :param fast5_fn:
     :return:
     """
