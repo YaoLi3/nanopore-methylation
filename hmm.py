@@ -124,17 +124,17 @@ def count_types(self):
 ########################
 class OverlappedRead:
     """
-    For a read instance, it has 5 attributes:
+    A read object has 5 attributes:
     its sequencer id,
     chromosome number,
-    start position on reference genome,
+    start position on reference genome (gh38),
     end position on reference genome,
-    and its SNPs instances.
+    and its SNPs objects.
 
     In this step, we only deal with nanopore reads that have at least one base
     overlapped with the known human imprinted gene regions.
 
-    And to find SNPs located inside each reads using know human SNPs data.
+    And to find SNPs located inside each reads using known human SNPs data.
     """
 
     def __init__(self, id, chr, pos1, pos2):
@@ -147,11 +147,11 @@ class OverlappedRead:
     def detect_snps(self, SNPs_data):
         """
         Find snps in one read.
-        :param SNPs_data: (dict) SNPs.SNPs: key = NO., value = SNPs instance
+        :param SNPs_data: (list) class SNPs objects
         """
         for snp in SNPs_data:  # each snp instance, attr: chrom, id, pos, ref, alt, gt
             if snp.chrom == self.chrom and self.start <= snp.pos <= self.end:  # if position
-                self.snps.append(snp)  # save snp object in a list
+                self.snps.append(snp)
 
     def get_read_data(self):
         return self.id, self.snps
@@ -198,10 +198,10 @@ class HmmHaplotypes:
 
     def __init__(self, snps, reads, states, obs):
         """
-        :param snps:
-        :param reads:
-        :param states:
-        :param obs:
+        :param snps: list of SNPs objects
+        :param reads: list of OverlappedReads objects
+        :param states: list of hidden states
+        :param obs: list of emissions
         """
         self.SNPs = snps
         self.READS = reads
@@ -213,11 +213,19 @@ class HmmHaplotypes:
         self.transition = np.zeros((len(self.STATES), len(self.STATES)))
         self.emission = np.zeros((len(self.SNPs), len(self.STATES), len(self.OBSERVATIONS)))
 
-        self.M = []
-        self.P = []
+        self.d0 = []
+        self.d1 = []
 
         self.old_transition = np.zeros((len(self.STATES), len(self.STATES)))
         self.old_emission = np.zeros((len(self.SNPs), len(self.STATES), len(self.OBSERVATIONS)))
+
+    def symbol_to_index(self, s):
+        """
+
+        :param s:
+        :return:
+        """
+        return self.OBSERVATIONS.index(s)
 
     def cal_snp_prob(self, snp):
         """
@@ -255,7 +263,7 @@ class HmmHaplotypes:
         Parameter B: emission probability.
         Parameter pi ? from split_data function?
         """
-        self.M, self.P = split_data(self.READS, 0.5)
+        self.d0, self.d1 = split_data(self.READS, 0.5)
         self.transition = np.array([[1, 0], [0, 1]])
         self.init_emission()
 
@@ -271,7 +279,7 @@ class HmmHaplotypes:
         else:
             return c2.append(r)
 
-    def cal_read_prob(self, read, state):
+    def cal_read_prob(self, read, state): # 07/03/18 night, testing here. need to extract read symbols on SNP positions.
         """
         In a given model, calculate the probability of the read which has certain SNPs occurs,
         by multiplying the probability of each SNPs in this model.
@@ -285,8 +293,19 @@ class HmmHaplotypes:
         In Maternal model:
         P(Read1|Maternal) = P(SNP1|Maternal) * P(SNP3|Maternal) * P(SNP5|Maternal)
         """
+        p_read = 1
+        read_symbols = ["A"]
         for snp in read.snps:
-            print(snp.pos)
+            index = self.SNPs.index(snp)
+            #print(index)
+            #probOfTwoStates = self.emission[index]
+            sym = self.symbol_to_index(read_symbols[0])
+            probOfOneState = self.emission[index, state, sym]
+            print(probOfOneState)
+            p_read = p_read * probOfOneState
+            print(p_read)
+            break
+        return p_read
 
     def cal_n_assign(self, reads):
         """
@@ -306,19 +325,19 @@ class HmmHaplotypes:
         P(Read1|Maternal) > P(Read1|Parental)
         Assign Read1 to Maternal model.
         """
-        new_0 = []
-        new_1 = []
+        new_d0 = []
+        new_d1 = []
         for read in reads:
-            P_0 = self.cal_read_prob(read, self.STATES[0])
-            P_1 = self.cal_read_prob(read, self.STATES[1])
+            P_0 = self.cal_read_prob(read, 0)
+            P_1 = self.cal_read_prob(read, 1)
 
             if P_0 > P_1:
-                new_0.append(read)
+                new_d0.append(read)
             elif P_0 < P_1:
-                new_1.append(read)
+                new_d1.append(read)
             else:
-                self.random_assign(read, new_0, new_1)
-        self.set_data(new_0, new_1)
+                self.random_assign(read, new_d0, new_d1)
+        self.set_data(new_d0, new_d1)
 
     def cal_emission(self):
         """
@@ -348,7 +367,16 @@ class HmmHaplotypes:
             self.cal_n_assign(reads)
             self.cal_emission()
 
-    def predict(self, read):
+    def viterbi(self):
+        pass
+
+    def forward(self):
+        pass
+
+    def backward(self):
+        pass
+
+    def predict(self, read, alg = "viterbi"):
         """
         Viterbi algorithm. Find the maximum likelihood for a read.
         :param read:
@@ -361,6 +389,11 @@ class HmmHaplotypes:
         P(read|Parental) = 0.3
         origin is "Maternal"
         """
+        algorithms = {"viterbi": HmmHaplotypes.viterbi,
+                      "backward": HmmHaplotypes.forward,
+                      "forward": HmmHaplotypes.backward}
+        if alg not in algorithms:
+            raise ValueError("This algorithm does not exist.")
         pass
 
     def get_states(self):
@@ -389,18 +422,21 @@ class HmmHaplotypes:
 
     def set_data(self, m, p):
         """Set reads belong to two models."""
-        self.M = m
-        self.P = p
+        self.d0 = m
+        self.d1 = p
 
     def get_data(self):
         """Return data."""
-        return self.M, self.P
+        return self.d0, self.d1
 
     def save(self):
         pass
 
     def load(self):
         pass
+
+    def __str__(self):
+        return "This model."
 
 
 def split_data(data, ratio):
