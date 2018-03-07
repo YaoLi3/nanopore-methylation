@@ -13,7 +13,7 @@ import random
 ###################
 class SNPs:
     """
-    Human SNP data.
+    Human SNPs data.
     chrom, pos, id, ref, alt, qual, filter, info, gt
     (ignore all indel variants)
     How many of them locate in nanopore reads? in human imprinted regions?
@@ -22,126 +22,166 @@ class SNPs:
     chr19 294525 . A C 0 PASS KM=8;KFP=0;KFF=0;MTD=bwa_freebayes,bwa_gatk,bwa_platypus,isaac_strelka GT 1|0
     """
 
-    def __init__(self):
-        self.SNPs = {}
-        self.snp_types = {}
-        self.GT = ["0|1", "1|0", "2|0", "2|1", "0|2", "1|2", "0|0", "1|1"]  # heter and homozytyes
+    def __init__(self, chr, id, pos, ref, alt, gt):
+        self.chrom = chr
+        self.id = id
+        self.pos = pos
+        self.ref = ref
+        self.alt = alt
+        self.gt = gt
+        self.type = ""
+        self.detect_type()
 
-    def load_VCF(self, file):
+    def detect_type(self):
         """
-        Read a VCF file and return he data in it.
-        :param file: (string) VCF file name
-        :return: self.SNPs: (dictionary) data of the variants (SNPs), key are numbers
-        """
-        try:
-            f = open(file, "r")
-            cnt = 0
-            for line in f:
-                if line.startswith("chr"):
-                    chrom, pos, id, ref, alt, qual, \
-                    filter, info, format, gt \
-                        = line.strip().split("\t")
-                    a, b = gt.split("|")
-                    if chrom == "chr19" and a != b:  # only use heter snps
-                        self.SNPs[cnt] = (chrom, int(pos), id, ref, alt,
-                                          qual, filter, info, format, int(a), int(b))
-                        cnt += 1
-            f.close()
-            return self.SNPs  # return dataset
-        except ValueError:
-            raise RuntimeError("Not the right values to unpack.")
-        except IOError:
-            raise IOError("This vcf file is not available.")
-
-    def get_snp(self):
-        """
-        Extract suitable data for hmm training.
-        :return: data (list) contains only position and haplotypes information.
-        """
-        simple_data = []
-        for key in self.SNPs:
-            simple_data.append((self.SNPs[key][1],  # position
-                                self.SNPs[key][3],  # reference base
-                                self.SNPs[key][4],  # alternative base
-                                self.SNPs[key][9],  # a status
-                                self.SNPs[key][10]))  # b status
-        return simple_data
-
-    def if_indel(self, ref, alt):
-        """
-        Decide if a snp is an indel variation.
-        :param ref: (string) a reference base
-        :param alt: (string) a mutated base
-        :return: boolean
-        """
-        if len(ref) > 1 or len(alt) > 1:
-            return True
-        else:
-            return False
-
-    def if_transition(self, ref, alt):
-        """
-        Decide if a snp is a transition variation.
-        :param ref: (string) a reference base
-        :param alt: (string) a mutated base
-        :return: boolean
+        SNP type.
         """
         TRANSITIONS = ["AG", "CT"]
-        if ref == alt:
-            return False
-        elif ref in TRANSITIONS[0] and alt in TRANSITIONS[0]:
-            return True
-        elif ref in TRANSITIONS[1] and alt in TRANSITIONS[1]:
-            return True
-        else:
-            return False
-
-    def if_transversion(self, ref, alt):
-        """
-        Decide if a snp is a transversion variation.
-        :param ref: (string) a reference base
-        :param alt: (string) a mutated base
-        :return: boolean
-        """
         TRANSVERSIONS = ["AC", "AT", "CG", "GT"]
-        for conbo in TRANSVERSIONS:
-            if ref != alt and ref in conbo and alt in conbo:
-                return True
-        return False
 
-    def count_types(self):
-        """
-        SNPs have 3 types: indel, transition and transversion.
-        This method is to determine the type of SNPs and save the results in a dictionary.
-        :return: (dict) key = snp type
-                        value = all the information of snp from the vcf file. e.g.
-                        (chrom, int(pos), id, ref, alt, qual, filter, info, format, h1, h2))
-        """
-        indels = []
-        transitions = []
-        transversions = []
-        for snp in self.SNPs:
-            ref = self.SNPs[snp][3]
-            alt = self.SNPs[snp][4]
-            if self.if_indel(ref, alt):
-                indels.append(self.SNPs[snp])
-            elif self.if_transition(ref, alt):
-                transitions.append(self.SNPs[snp])
-            elif self.if_transversion(ref, alt):
-                transversions.append(self.SNPs[snp])
-        self.snp_types["indels"] = indels
-        self.snp_types["transitions"] = transitions
-        self.snp_types["transversions"] = transversions
-        return self.snp_types
+        if len(self.ref) > 1 or len(self.alt) > 1:
+            self.type = "indel"
 
-    def cal_prob(self, snp):
+        elif (self.ref in TRANSITIONS[0] and self.alt in TRANSITIONS[0]) \
+                or (self.ref in TRANSITIONS[1] and self.alt in TRANSITIONS[1]):
+            self.type = "transition"
+
+        else:
+            for conbo in TRANSVERSIONS:
+                if self.ref != self.alt and self.ref in conbo and self.alt in conbo:
+                    self.type = "transversion"
+
+    def __str__(self):
+        return "{}: {}\tREF:{}, ALT:{}\tTYPE:{}".format(self.chrom, self.pos, self.ref, self.alt, self.type)
+
+
+def load_VCF(vcf_file, count_index = False):
+    """
+    Read a VCF file and return he data in it.
+    :param vcf_file: (string) VCF file name
+    :return: all_snps: (list) SNPs instances
+    """
+    try:
+        f = open(vcf_file, "r")
+        all_snps = []
+        for line in f:
+            if line.startswith("chr"):
+                chrom, pos, id, ref, alt, qual, \
+                filter, info, format, gt \
+                    = line.strip().split("\t")
+                a, b = gt.split("|")
+                if chrom == "chr19" and a != b:  # only use heter snps
+                    snp = SNPs(chrom, id, pos, ref, alt, gt)
+                    if not snp.type == "indel":
+                        all_snps.append(snp)
+        f.close()
+        return all_snps
+    except ValueError:
+        raise RuntimeError("Not the right values to unpack.")
+    except IOError:
+        raise IOError("This vcf file is not available.")
+
+
+def cal_prob(snp, all_snps):
+    """
+    Given a snp, what's the frequency of happening
+    its mutation (ref -> alt) on its position?
+    :param snp: (SNPs) an instance
+    :param all_snps: (list)
+    :return: probability (float) calculated based on give vcf data.
+    """
+    pass
+
+
+def count_types(self):
+    """
+    SNPs have 3 types: indel, transition and transversion.
+    This method is to determine the type of SNPs and save the results in a dictionary.
+    :return: (dict) key = snp type
+                    value = all the information of snp from the vcf file. e.g.
+                    (chrom, int(pos), id, ref, alt, qual, filter, info, format, h1, h2))
+    """
+    indels = []
+    transitions = []
+    transversions = []
+    for snp in self.SNPs:
+        ref = self.SNPs[snp][3]
+        alt = self.SNPs[snp][4]
+        if self.if_indel(ref, alt):
+            indels.append(self.SNPs[snp])
+        elif self.if_transition(ref, alt):
+            transitions.append(self.SNPs[snp])
+        elif self.if_transversion(ref, alt):
+            transversions.append(self.SNPs[snp])
+    self.snp_types["indels"] = indels
+    self.snp_types["transitions"] = transitions
+    self.snp_types["transversions"] = transversions
+    return self.snp_types
+
+
+########################
+# Target read segments #
+########################
+class OverlappedRead:
+    """
+    For a read instance, it has 5 attributes:
+    its sequencer id,
+    chromosome number,
+    start position on reference genome,
+    end position on reference genome,
+    and its SNPs instances.
+
+    In this step, we only deal with nanopore reads that have at least one base
+    overlapped with the known human imprinted gene regions.
+
+    And to find SNPs located inside each reads using know human SNPs data.
+    """
+
+    def __init__(self, id, chr, pos1, pos2):
+        self.id = id
+        self.chrom = chr
+        self.start = pos1
+        self.end = pos2
+        self.snps = []
+
+    def detect_snps(self, SNPs_data):
         """
-        Given a snp, what's the frequency of happening
-        its mutation (ref -> alt) on its position?
-        :param snp: (position on ref genome, ref, alt)
-        :return: probability (float) calculated based on give vcf data.
+        Find snps in one read.
+        :param SNPs_data: (dict) SNPs.SNPs: key = NO., value = SNPs instance
         """
-        pass
+        for snp in SNPs_data:  # each snp instance, attr: chrom, id, pos, ref, alt, gt
+            if snp.chrom == self.chrom and self.start <= snp.pos <= self.end:  # if position
+                self.snps.append(snp)  # save snp object in a list
+
+    def get_read_data(self):
+        return self.id, self.snps
+
+    def __str__(self):
+        return "{}: {},{} \tSNPs:{}".format(self.chrom, self.start, self.end, len(self.snps))
+
+
+def process_all_reads(read_file, SNPs_data):
+    """
+    1.Nanopore reads data.
+    2.SNPs data.
+
+    :param read_file:
+    :param SNPs_data:
+    :return: (list) : OverlappedReads instances (total 375 of them)
+    """
+    f = open(read_file, "r")
+    all_reads = []
+    for line in f:
+        line = line.strip().split("\t")
+        if len(line) == 8:
+            id, gene, chr, info, read_pos, ref_pos, thrhld, seq = line
+            ref_pos = ref_pos.strip("()").split(",")
+            read = OverlappedRead(id, chr, ref_pos[0], ref_pos[1][1:])
+            read.detect_snps(SNPs_data)
+            if not read.snps == []:
+                all_reads.append(read)
+    f.close()
+    return all_reads
 
 
 #######################
@@ -149,6 +189,7 @@ class SNPs:
 #######################
 class HmmHaplotypes:
     """
+    Find the haplotype for a sequence.
     SNPs data.
     Nanopore sequencing data.
     Cluster Nanopore reads into two haplotypes (maternal and parental)
@@ -158,19 +199,40 @@ class HmmHaplotypes:
     def __init__(self, snps, reads, states, obs):
         """
         :param snps:
+        :param reads:
         :param states:
         :param obs:
         """
         self.SNPs = snps
         self.READS = reads
+
         self.STATES = states
         self.OBSERVATIONS = obs
-        self.transition = {}
-        self.emission = {}
+
+        self.start = np.zeros((1, len(self.STATES)))
+        self.transition = np.zeros((len(self.STATES), len(self.STATES)))
+        self.emission = np.zeros((len(self.SNPs), len(self.STATES), len(self.OBSERVATIONS)))
+
         self.M = []
         self.P = []
-        self.old_transition = {}
-        self.old_emission = {}
+
+        self.old_transition = np.zeros((len(self.STATES), len(self.STATES)))
+        self.old_emission = np.zeros((len(self.SNPs), len(self.STATES), len(self.OBSERVATIONS)))
+
+    def cal_snp_prob(self, snp):
+        """
+        Calculates a probability distribution <A, T, C, G> for each SNP position
+        :return:
+        """
+        try:
+            prob_dist = [0, 0, 0, 0]
+            index1 = self.OBSERVATIONS.index(snp.ref)
+            index2 = self.OBSERVATIONS.index(snp.alt)
+            prob_dist[index1] = 10
+            prob_dist[index2] = 10
+            return prob_dist
+        except ValueError:
+            print("Wrong nucleotide symbol.")
 
     def init_emission(self):
         """
@@ -182,17 +244,8 @@ class HmmHaplotypes:
         SNP99: ref: C. alt: T. GT: 1|0 (GT irrelevant?)
         emission[SNP99] = random.dirichlet(0, 10, 10, 0)
         """
-        for snp in self.SNPs:
-            #r_p = (0, 0, 0, 0) # random/artificial probability
-            pos = self.SNPs[snp][2]
-            ref = self.SNPs[snp][3]
-            alt = self.SNPs[snp][4]
-            #index1 = self.OBSERVATIONS.index(ref)
-            #index2 = self.OBSERVATIONS.index(alt)
-            emiss = np.random.dirichlet((len(self.emiss), (10, 0, 0, 10))).transpose()  # ? don't need
-
-        for n in range((10, 0, 0, 10)):
-            self.emission[n].loc[pos] = (emiss[0][n], emiss[1][n], emiss[3][n], emiss[4][n])
+        for index, snp in enumerate(self.SNPs):
+            self.emission[index] = np.random.dirichlet(self.cal_snp_prob(snp), len(self.STATES))
 
     def initialize(self):
         """
@@ -203,7 +256,7 @@ class HmmHaplotypes:
         Parameter pi ? from split_data function?
         """
         self.M, self.P = split_data(self.READS, 0.5)
-        self.transition = {"Parental": {"P": 1, "M": 0}, "Maternal": {"P": 0, "M": 1}}
+        self.transition = np.array([[1, 0], [0, 1]])
         self.init_emission()
 
     def random_assign(self, r, c1, c2):
@@ -223,8 +276,8 @@ class HmmHaplotypes:
         In a given model, calculate the probability of the read which has certain SNPs occurs,
         by multiplying the probability of each SNPs in this model.
         P(R) = Π (Ri|Mi)
-        :param read: nanopore read
-        :param state: (string) one of the model
+        :param read: (OverlappedRead) object, .snps = list of SNPs objects
+        :param state: (string) one of the model (int) 0 or 1
         :return:
 
         e.g.
@@ -232,7 +285,8 @@ class HmmHaplotypes:
         In Maternal model:
         P(Read1|Maternal) = P(SNP1|Maternal) * P(SNP3|Maternal) * P(SNP5|Maternal)
         """
-        pass
+        for snp in read.snps:
+            print(snp.pos)
 
     def cal_n_assign(self, reads):
         """
@@ -242,7 +296,7 @@ class HmmHaplotypes:
         M-step: Based on results, assign the read to the model gave the bigger probability.
 
         e.g.
-        Read1: SNP1, SNP3, SNP5
+        Read1: (SNP1, SNP3, SNP5)
         E-step:
         In Maternal model:
         P(Read1|Maternal) = P(SNP1|Maternal) * P(SNP3|Maternal) * P(SNP5|Maternal)
@@ -252,19 +306,19 @@ class HmmHaplotypes:
         P(Read1|Maternal) > P(Read1|Parental)
         Assign Read1 to Maternal model.
         """
-        new_M = []
-        new_P = []
+        new_0 = []
+        new_1 = []
         for read in reads:
-            P_M = self.cal_read_prob(read, "Maternal")
-            P_P = self.cal_read_prob(read, "Parental")
+            P_0 = self.cal_read_prob(read, self.STATES[0])
+            P_1 = self.cal_read_prob(read, self.STATES[1])
 
-            if P_M > P_P:
-                new_M.append(read)
-            elif P_M < P_P:
-                new_P.append(read)
+            if P_0 > P_1:
+                new_0.append(read)
+            elif P_0 < P_1:
+                new_1.append(read)
             else:
-                self.random_assign(read, new_P, new_M)
-        self.set_data(new_M, new_P)
+                self.random_assign(read, new_0, new_1)
+        self.set_data(new_0, new_1)
 
     def cal_emission(self):
         """
@@ -279,16 +333,35 @@ class HmmHaplotypes:
         or the assignment of each read stops changing,
         stop iteration. The training of the model is complete.
         """
-        if self.old_emission == self.emission: # when model parameter stops changing
+        if self.old_emission == self.emission:  # when model parameter stops changing
             return True
         else:
             return False
 
     def train_model(self, reads):
-        """in case of an infinite loop"""
+        """in case of an infinite loop
+
+        e.g.
+        HmmHaplotypes.train_model(listOfReads)
+        """
         while not self.iteration_end():
             self.cal_n_assign(reads)
             self.cal_emission()
+
+    def predict(self, read):
+        """
+        Viterbi algorithm. Find the maximum likelihood for a read.
+        :param read:
+        :return: one of the two states
+
+        e.g.
+        read = (SNP1, SNP2, SNP3, SNP4)
+        origin = HmmHaplotypes.predict(read)
+        P(read|Maternal) = 0.7
+        P(read|Parental) = 0.3
+        origin is "Maternal"
+        """
+        pass
 
     def get_states(self):
         """Return hidden states of the model."""
@@ -319,10 +392,17 @@ class HmmHaplotypes:
         self.M = m
         self.P = p
 
+    def get_data(self):
+        """Return data."""
+        return self.M, self.P
 
-################
-# Process data #
-################
+    def save(self):
+        pass
+
+    def load(self):
+        pass
+
+
 def split_data(data, ratio):
     """
     :param data: (list) full data used to split
@@ -337,59 +417,6 @@ def split_data(data, ratio):
         index = random.randrange(len(test))
         training_data.append(test.pop(index))
     return training_data, test
-
-
-def read_find_ip_results(fn):
-    """
-    Read a text file where save ... data, tab delimiter ...
-    :param fn:
-    :return:
-    """
-    f = open(fn, "r")
-    data = {}
-    for line in f:
-        line = line.strip().split("\t")
-        if len(line) == 7:
-            id, gene, info, read_pos, ref_pos, thrhld, seq = line
-            read_pos = read_pos.strip("()").split(",")
-            ref_pos = ref_pos.strip("()").split(",")
-            data[id] = (gene, info, read_pos, ref_pos, thrhld, seq)
-    return data
-
-
-def get_positions(file_n):
-    """
-    :param file_n: (string) file name
-    :return: (dict) key = reads id, value = (start, end) genome positions of the read
-    """
-    poses = {}
-    f = open(file_n, "r")
-    for line in f:
-        line = line.strip().split("\t")
-        if len(line) == 7:
-            pos = line[4].strip("()").split(",")
-            poses[line[0]] = (int(pos[0]), int(pos[1][1:]))
-    return poses
-
-
-def find_snps_in_read(read_f, snp_data):
-    """
-    :param read_f: (string) find_imprinted_result file name
-    :param snp_data: (list) [(snp genome position, a status, b status)]
-    :return: (dict) data: key = id, value = info. key = snp, seq.
-    """
-    data = {}
-    ip_reads_regions = get_positions(read_f)
-    for id in ip_reads_regions:
-        snps = []
-        start, end = ip_reads_regions[id]
-        for snp in snp_data:
-            snp_p = snp_data[snp][1]
-            if start <= snp_p <= end:
-                snps.append(snp_data[snp])
-        if not snps == []:
-            data[id] = snps
-    return data
 
 
 ########################################################

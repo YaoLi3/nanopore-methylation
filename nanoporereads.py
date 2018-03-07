@@ -131,7 +131,7 @@ class NanoporeReads:
                             n += 1
                             c += 1
                             gene[j] = c
-                            self.overlap[i] = [j, "both ends",
+                            self.overlap[i] = [j, self.chrom, "both ends",
                                                (1, l + 1),
                                                (pos1, pos2),
                                                thrhld, seq]
@@ -143,7 +143,7 @@ class NanoporeReads:
                             n += 1
                             c += 1
                             gene[j] = c
-                            self.overlap[i] = [j, "start pos",
+                            self.overlap[i] = [j, self.chrom, "start pos",
                                                (1, l1 + 1),
                                                (end - l1, end),
                                                thrhld, seq]
@@ -155,22 +155,23 @@ class NanoporeReads:
                             n += 1
                             c += 1
                             gene[j] = c
-                            self.overlap[i] = [j, "end pos",
+                            self.overlap[i] = [j, self.chrom, "end pos",
                                                (pos2 - pos1 - l2, pos2 - pos1),
                                                (start, start + l2), thrhld, seq]
         # Save results into a txt file
         if save_file:
             file = open(file, "w")
             file.write(
-                "Read_ID\t\tImprinted_Gene\t\tInfo\t\tPos_On_Read"
-                "\t\tPos_On_Ref_Genome\t\tIR_Length_Threshold\t\tSequence\n\n")
+                "Read_ID\t\tImprinted_Gene\t\tChromosome\t\tInfo\t\tPos_On_Read"
+                "\t\tPos_On_Ref_Genome\t\tIR_Length_Threshold\n\n")
             for id in self.overlap:
-                file.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\n\n".format(id, self.overlap[id][0],
+                file.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n\n".format(id, self.overlap[id][0],
                                                                self.overlap[id][1],
                                                                self.overlap[id][2],
                                                                self.overlap[id][3],
                                                                self.overlap[id][4],
-                                                               self.overlap[id][5]))
+                                                               self.overlap[id][5],
+                                                               self.overlap[id][6]))
             file.write("\n{} reads pass the threshold.\n".format(n))
             for name in gene:
                 file.write("{} in gene {}\n".format(gene[name], name))
@@ -182,8 +183,6 @@ class NanoporeReads:
             file.write("\nTotal {} chr19 reads have overlap "
                        "with chr19 imprinted regions.\n".format(cnt))
             file.close()
-
-        return self.overlap
 
     def get_imprinted_reads(self):
         """

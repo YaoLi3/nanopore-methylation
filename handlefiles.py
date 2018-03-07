@@ -116,3 +116,55 @@ def load_npy(npy_fn):
     :return:
     """
     return np.load(npy_fn)[0]
+
+
+def read_find_ip_results(fn):
+    """
+    Read a text file where save ... data, tab delimiter ...
+    :param fn:
+    :return:
+    """
+    f = open(fn, "r")
+    data = {}
+    for line in f:
+        line = line.strip().split("\t")
+        if len(line) == 7:
+            id, gene, info, read_pos, ref_pos, thrhld, seq = line
+            read_pos = read_pos.strip("()").split(",")
+            ref_pos = ref_pos.strip("()").split(",")
+            data[id] = (gene, info, read_pos, ref_pos, thrhld, seq)
+
+
+def get_positions(file_n):
+    """
+    :param file_n: (string) file name
+    :return: (dict) key = reads id, value = (start, end) genome positions of the read
+    """
+    poses = {}
+    f = open(file_n, "r")
+    for line in f:
+        line = line.strip().split("\t")
+        if len(line) == 7:
+            pos = line[4].strip("()").split(",")
+            poses[line[0]] = (int(pos[0]), int(pos[1][1:]))
+    return poses
+
+
+def find_snps_in_read(read_f, snp_data):
+    """
+    :param read_f: (string) find_imprinted_result file name
+    :param snp_data: (list) [(snp genome position, a status, b status)]
+    :return: (dict) data: key = id, value = info. key = snp, seq.
+    """
+    data = {}
+    ip_reads_regions = get_positions(read_f)
+    for id in ip_reads_regions:
+        snps = []
+        start, end = ip_reads_regions[id]
+        for snp in snp_data:
+            snp_p = snp_data[snp][1]
+            if start <= snp_p <= end:
+                snps.append(snp_data[snp])
+        if not snps == []:
+            data[id] = snps
+    return data
