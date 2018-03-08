@@ -5,7 +5,10 @@
       <w>basecalled</w>
       <w>emiss</w>
       <w>fastq</w>
+      <w>indels</w>
+      <w>nano</w>
       <w>thrhld</w>
+      <w>transversions</w>
     </words>
   </dictionary>
 </component>

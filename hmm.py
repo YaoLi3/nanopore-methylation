@@ -25,7 +25,7 @@ class SNPs:
     def __init__(self, chr, id, pos, ref, alt, gt):
         self.chrom = chr
         self.id = id
-        self.pos = pos
+        self.pos = int(pos)
         self.ref = ref
         self.alt = alt
         self.gt = gt
@@ -137,12 +137,14 @@ class OverlappedRead:
     And to find SNPs located inside each reads using known human SNPs data.
     """
 
-    def __init__(self, id, chr, pos1, pos2):
+    def __init__(self, id, chr, pos1, pos2, seq):
         self.id = id
         self.chrom = chr
-        self.start = pos1
-        self.end = pos2
+        self.start = int(pos1)
+        self.end = int(pos2)
+        self.seq = seq
         self.snps = []
+        self.base = []
 
     def detect_snps(self, SNPs_data):
         """
@@ -153,8 +155,18 @@ class OverlappedRead:
             if snp.chrom == self.chrom and self.start <= snp.pos <= self.end:  # if position
                 self.snps.append(snp)
 
+    def get_bases(self):
+        """
+        Get bases on SNP positions on read sequence.
+        :return: list of string, bases, ATCG
+        """
+        for snp in self.snps:
+            index = int(snp.pos) - int(self.start)
+            self.base.append(self.seq[index])
+        return self.base
+
     def get_read_data(self):
-        return self.id, self.snps
+        return self.id, self.snps, self.base
 
     def __str__(self):
         return "{}: {},{} \tSNPs:{}".format(self.chrom, self.start, self.end, len(self.snps))
@@ -176,9 +188,10 @@ def process_all_reads(read_file, SNPs_data):
         if len(line) == 8:
             id, gene, chr, info, read_pos, ref_pos, thrhld, seq = line
             ref_pos = ref_pos.strip("()").split(",")
-            read = OverlappedRead(id, chr, ref_pos[0], ref_pos[1][1:])
+            read = OverlappedRead(id, chr, ref_pos[0], ref_pos[1][1:], seq)
             read.detect_snps(SNPs_data)
             if not read.snps == []:
+                read.get_bases()
                 all_reads.append(read)
     f.close()
     return all_reads
@@ -233,7 +246,7 @@ class HmmHaplotypes:
         :return:
         """
         try:
-            prob_dist = [0, 0, 0, 0]
+            prob_dist = [0.000001, 0.000001, 0.000001, 0.000001]
             index1 = self.OBSERVATIONS.index(snp.ref)
             index2 = self.OBSERVATIONS.index(snp.alt)
             prob_dist[index1] = 10
@@ -254,6 +267,7 @@ class HmmHaplotypes:
         """
         for index, snp in enumerate(self.SNPs):
             self.emission[index] = np.random.dirichlet(self.cal_snp_prob(snp), len(self.STATES))
+
 
     def initialize(self):
         """
@@ -283,7 +297,7 @@ class HmmHaplotypes:
         """
         In a given model, calculate the probability of the read which has certain SNPs occurs,
         by multiplying the probability of each SNPs in this model.
-        P(R) = Π (Ri|Mi)
+        P(R) = Π (R i|Model i)
         :param read: (OverlappedRead) object, .snps = list of SNPs objects
         :param state: (string) one of the model (int) 0 or 1
         :return:
@@ -293,19 +307,13 @@ class HmmHaplotypes:
         In Maternal model:
         P(Read1|Maternal) = P(SNP1|Maternal) * P(SNP3|Maternal) * P(SNP5|Maternal)
         """
-        p_read = 1
-        read_symbols = ["A"]
-        for snp in read.snps:
-            index = self.SNPs.index(snp)
-            #print(index)
-            #probOfTwoStates = self.emission[index]
-            sym = self.symbol_to_index(read_symbols[0])
-            probOfOneState = self.emission[index, state, sym]
-            print(probOfOneState)
-            p_read = p_read * probOfOneState
-            print(p_read)
-            break
-        return p_read
+        P = 0
+        for list_pos, snp in enumerate(read.snps):
+            i = self.SNPs.index(snp)
+            read_symbols = read.get_bases()
+            sym = self.symbol_to_index(read_symbols[list_pos])
+            P += self.emission[i, state, sym]
+        return P
 
     def cal_n_assign(self, reads):
         """
@@ -330,7 +338,6 @@ class HmmHaplotypes:
         for read in reads:
             P_0 = self.cal_read_prob(read, 0)
             P_1 = self.cal_read_prob(read, 1)
-
             if P_0 > P_1:
                 new_d0.append(read)
             elif P_0 < P_1:
@@ -344,7 +351,8 @@ class HmmHaplotypes:
         Based on new Maternal and Parental reads, calculate the emission probability.
         The probability of observing A, T, C, G on certain SNP position in each model.
         """
-        pass
+        self.old_emission = self.emission
+        self.emission = 0
 
     def iteration_end(self):
         """

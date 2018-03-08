@@ -4,10 +4,8 @@ __author__ = Yao LI
 __email__ = yao.li.binf@gmail.com
 __date__ = 08/02/2018
 """
-import h5py
 import numpy as np
 import editdistance
-from imprintedregions import *
 
 
 class NanoporeReads:

@@ -7,7 +7,6 @@ __date__ = 07/02/2018
 from h5utils import *
 from nanoporereads import *
 from handlefiles import *
-from imprintedregions import *
 
 
 def get_raw_dirc(directory, savepath, ir_pos):

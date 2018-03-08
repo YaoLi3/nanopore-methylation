@@ -26,12 +26,16 @@ if __name__ == "__main__":
     #training, testing = split_data(read_snp, 0.8)
     hmm = HmmHaplotypes(snp_data, read_snp, ["P", "M"], ["A", "T", "G", "C"])
     #print(hmm.emission.shape) # (50746, 2, 4)
-    hmm.init_emission()
+    #hmm.init_emission()
     #print(hmm.emission.shape) #(50746, 2, 4)
     hmm.initialize()
     #print(hmm.transition.shape) # (2, 2)
     #print(len(hmm.M)) # list of 161 OverlapRead object
-    hmm.cal_read_prob(read_snp[0], 0)
+    #hmm.cal_read_prob(read_snp[0], 0)
+    hmm.cal_n_assign(read_snp)
+    print(len(hmm.d0)) #131 M reads 149 155
+    print(len(hmm.d1)) #163 P reads 153 147
+    print(hmm.emission.shape) #(50746, 2, 4)
 
     """raw signal data"""
 

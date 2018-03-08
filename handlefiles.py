@@ -113,7 +113,7 @@ def getID(fast5_f):
 def load_npy(npy_fn):
     """
     :param npy_fn:
-    :return:
+    :return: (numpy) raw signal array
     """
     return np.load(npy_fn)[0]
 
