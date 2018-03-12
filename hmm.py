@@ -224,13 +224,16 @@ class HmmHaplotypes:
 
         self.start = np.zeros((1, len(self.STATES)))
         self.transition = np.zeros((len(self.STATES), len(self.STATES)))
-        self.emission = np.zeros((len(self.SNPs), len(self.STATES), len(self.OBSERVATIONS)))
+        self.emission0 = np.zeros((len(self.SNPs), len(self.STATES), len(self.OBSERVATIONS)))
+        self.emission1 = np.zeros((len(self.SNPs), len(self.STATES), len(self.OBSERVATIONS)))
+        self.emission = [self.emission0, self.emission1]
 
         self.d0 = []
         self.d1 = []
 
         self.old_transition = np.zeros((len(self.STATES), len(self.STATES)))
-        self.old_emission = np.zeros((len(self.SNPs), len(self.STATES), len(self.OBSERVATIONS)))
+        self.old_emission0 = np.zeros((len(self.SNPs), len(self.STATES), len(self.OBSERVATIONS)))
+        self.old_emission1 = np.zeros((len(self.SNPs), len(self.STATES), len(self.OBSERVATIONS)))
 
     def symbol_to_index(self, s):
         """
@@ -265,9 +268,10 @@ class HmmHaplotypes:
         SNP99: ref: C. alt: T. GT: 1|0 (GT irrelevant?)
         emission[SNP99] = random.dirichlet(0, 10, 10, 0)
         """
+        emission = np.zeros((len(self.SNPs), len(self.STATES), len(self.OBSERVATIONS)))
         for index, snp in enumerate(self.SNPs):
-            self.emission[index] = np.random.dirichlet(self.cal_snp_prob(snp), len(self.STATES))
-
+            emission[index] = np.random.dirichlet(self.cal_snp_prob(snp), len(self.STATES))
+        return emission
 
     def initialize(self):
         """
@@ -279,7 +283,9 @@ class HmmHaplotypes:
         """
         self.d0, self.d1 = split_data(self.READS, 0.5)
         self.transition = np.array([[1, 0], [0, 1]])
-        self.init_emission()
+        #self.init_emission()
+        self.emission0 = self.init_emission()
+        self.emission1 = self.init_emission()
 
     def random_assign(self, r, c1, c2):
         """
@@ -299,8 +305,8 @@ class HmmHaplotypes:
         by multiplying the probability of each SNPs in this model.
         P(R) = Π (R i|Model i)
         :param read: (OverlappedRead) object, .snps = list of SNPs objects
-        :param state: (string) one of the model (int) 0 or 1
-        :return:
+        :param state: (int) 0 or 1
+        :return: Probability of a (read) occurring in one (state).
 
         e.g.
         Read1: SNP1, SNP3, SNP5
@@ -312,7 +318,7 @@ class HmmHaplotypes:
             i = self.SNPs.index(snp)
             read_symbols = read.get_bases()
             sym = self.symbol_to_index(read_symbols[list_pos])
-            P += self.emission[i, state, sym]
+            P += self.emission[state][i, state, sym]
         return P
 
     def cal_n_assign(self, reads):
@@ -351,8 +357,9 @@ class HmmHaplotypes:
         Based on new Maternal and Parental reads, calculate the emission probability.
         The probability of observing A, T, C, G on certain SNP position in each model.
         """
-        self.old_emission = self.emission
-        self.emission = 0
+        self.old_emission0 = self.emission0
+        self.old_emission1 = self.emission1
+        self.emission0 = 0
 
     def iteration_end(self):
         """
@@ -360,7 +367,8 @@ class HmmHaplotypes:
         or the assignment of each read stops changing,
         stop iteration. The training of the model is complete.
         """
-        if self.old_emission == self.emission:  # when model parameter stops changing
+        if self.old_emission0 == self.emission0 \
+                and self.old_emission1 == self.emission1:  # when model parameter stops changing
             return True
         else:
             return False
