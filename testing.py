@@ -7,6 +7,7 @@ __date__ = 28/02/2018
 from nanoporereads import *
 from imprintedregions import *
 from hmm import *
+from rawsignal import *
 
 #############
 #  Testing  #
@@ -19,24 +20,24 @@ if __name__ == "__main__":
     #  375 reads
 
     """read snps data"""
-    snp_data = load_VCF("data/chr19.vcf") # list, 50746 SNPs
-    read_snp = process_all_reads("find_imprinted_result.txt", snp_data) # list, 322 reads
+    snp_data = load_VCF("data/chr19.vcf") # list, 50746 SNPs on chr19
+    read_snp = process_all_reads("data/find_imprinted_result.txt", snp_data) # list, 322 reads
 
     """train HMM"""
-    #training, testing = split_data(read_snp, 0.8)
     hmm = HmmHaplotypes(snp_data, read_snp, ["P", "M"], ["A", "T", "G", "C"])
-    #print(hmm.emission.shape) # (50746, 2, 4)
-    #hmm.init_emission()
-    #print(hmm.emission.shape) #(50746, 2, 4)
     hmm.initialize()
-    #print(hmm.transition.shape) # (2, 2)
-    #print(len(hmm.M)) # list of 161 OverlapRead object
-    #hmm.cal_read_prob(read_snp[0], 0)
-    hmm.cal_n_assign(read_snp)
-    print(len(hmm.d0)) #131 M reads 149 155
-    print(len(hmm.d1)) #163 P reads 153 147
-    print(hmm.emission.shape) #(50746, 2, 4)
+    n = 0
+    while n < 1000:
+        hmm.cal_emission()
+        hmm.assign()
+        n += 1
+
+    print(hmm.old_d0 == hmm.d0)
+    print(hmm.emission)
+    print(hmm.old_emission)
+    print(np.array_equal(hmm.old_emission, hmm.emission))
 
     """raw signal data"""
+    #raw = get_raw_dirc(".fast5", "/home/", overlap)
 
     """methylation clustering"""

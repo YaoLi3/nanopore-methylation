@@ -29,9 +29,18 @@ def get_raw_dirc(directory, savepath, ir_pos):
                     raw_signal[fst5] = (raw, fastq)
                     np.save(savepath + fst5.replace(".fast5", ".npy"), (raw, fastq))
         except KeyError:
+            raw, fastq = get_raw_segment(directory + fst5, poses[0], poses[1], basecall_group='Basecall_1D_001')
+            raw_signal[fst5] = (raw, fastq)
+            np.save(savepath + fst5.replace(".fast5", ".npy"), (raw, fastq))
             continue
         except TypeError:
             continue
         except StopIteration:
             print("This is the end.")
     return raw_signal
+
+
+def find_haplotype(raw_signals):
+    """For each raw_signal array, decide its haplotype."""
+    #TODO: use read id should be straightforward. need a class?
+    pass
