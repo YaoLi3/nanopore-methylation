@@ -27,7 +27,7 @@ def get_raw_segment(fast5_fn, start_base_idx, end_base_idx, basecall_group='Base
 
     """
     with h5py.File(fast5_fn, 'r') as root:
-        base = root['Analyses/Basecall_1D_000/BaseCalled_template']
+        base = root['Analyses/{}/BaseCalled_template'.format(basecall_group)]
         fastq = base['Fastq'].value.split()[2]
         seg = fastq[start_base_idx:end_base_idx]
         event_h = base['Events']

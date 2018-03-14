@@ -496,7 +496,7 @@ class HmmHaplotypes:
             return False
 
     def train_model(self):
-        #TODO: finalize
+        #TODO: finalizem
         """in case of an infinite loop
         e.g.
         HmmHaplotypes.train_model(listOfReads)

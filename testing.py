@@ -14,7 +14,7 @@ from rawsignal import *
 #############
 if __name__ == "__main__":
     """Nanopore reads data"""
-    #DATA = NanoporeReads("data/merged.sam", "19")
+    #DATA = NanoporeReads("data/chr19_merged.sam", "19")
     #DATA.get_reads()  # 45946 reads
     #overlap = DATA.find_imprinted(ImprintedRegions("data/ip_gene_pos.txt").get_regions(), 0, True, "find_imprinted_result.txt")
     #  375 reads
@@ -26,16 +26,7 @@ if __name__ == "__main__":
     """train HMM"""
     hmm = HmmHaplotypes(snp_data, read_snp, ["P", "M"], ["A", "T", "G", "C"])
     hmm.initialize()
-    n = 0
-    while n < 1000:
-        hmm.cal_emission()
-        hmm.assign()
-        n += 1
 
-    print(hmm.old_d0 == hmm.d0)
-    print(hmm.emission)
-    print(hmm.old_emission)
-    print(np.array_equal(hmm.old_emission, hmm.emission))
 
     """raw signal data"""
     #raw = get_raw_dirc(".fast5", "/home/", overlap)
