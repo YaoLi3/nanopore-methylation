@@ -29,7 +29,7 @@ class NanoporeReads:
             if chrom in ["XxYx"]:
                 self.chrom = "chr" + chrom.lower()
             else:
-                raise Exception ("Invalid chromosome number.")
+                raise Exception("Invalid chromosome number.")
 
         file = open(self.samfile, "r")
         self.data = {}
@@ -47,7 +47,7 @@ class NanoporeReads:
                 seq_len = len(seq)
                 end = (start + seq_len)
                 rname = line[2]
-                if rname == self.chrom:
+                if rname == self.chrom:  # some read may map to other chromosomes
                     self.reads[line[0]] = (start, end, rname, seq)
         file.close()
 
@@ -100,19 +100,20 @@ class NanoporeReads:
                             threshold been used
         """
         self.overlap = {}
-        gene = {}
-        b = 0
-        s = 0
-        e = 0
-        n = 0
-        cnt = 0
+        gene = {}; b = 0; s = 0; e = 0; n = 0; cnt = 0
         for j in regions:  # j = gene name
             c = 0
             start = int(regions[j][0])
             end = int(regions[j][1])
             r_range = range(start, end + 1)
-            chrom = regions[j][2]  # chr is just a (str)number
+            chrom = regions[j][2]  # chr is just a number(str)
             for i in self.reads:  # i = read ID
+                # make sam id and fast5 id the same format
+                if i.find("_Basecall_1D_template"):
+                    read_id = i.replace("_Basecall_1D_template", "")
+                else:
+                    read_id = i.replace("_Basecall_Alignment_template", "")
+
                 pos1, pos2, rname, seq = self.reads[i]  # pos1 & pos2 are int
                 if 0 <= thrhld <= 1:
                     min_coverage = thrhld * (pos2 - pos1)
@@ -121,41 +122,35 @@ class NanoporeReads:
                     return
                 if chrom == rname.replace("chr", ""):
                     if pos1 in r_range and pos2 in r_range:
-                        b += 1
-                        cnt += 1
+                        b += 1; cnt += 1
                         l = pos2 - pos1
                         # if both ends of the read located in an imprinted region
                         if min_coverage <= l:
-                            n += 1
-                            c += 1
+                            n += 1; c += 1
                             gene[j] = c
-                            self.overlap[i] = [j, self.chrom, "both ends",
-                                               (1, l + 1),
-                                               (pos1, pos2),
-                                               thrhld, seq]
+                            self.overlap[read_id] = [j, self.chrom, "both ends",
+                                                     (1, l + 1),
+                                                     (pos1, pos2),
+                                                     thrhld, seq]
                     elif pos1 in r_range and pos2 not in r_range:
-                        s += 1
-                        cnt += 1
+                        s += 1; cnt += 1
                         l1 = end - pos1  # overlapped length
                         if min_coverage <= l1:
-                            n += 1
-                            c += 1
+                            n += 1; c += 1
                             gene[j] = c
-                            self.overlap[i] = [j, self.chrom, "start pos",
-                                               (1, l1 + 1),
-                                               (end - l1, end),
-                                               thrhld, seq]
+                            self.overlap[read_id] = [j, self.chrom, "start pos",
+                                                     (1, l1 + 1),
+                                                     (end - l1, end),
+                                                     thrhld, seq]
                     elif pos2 in r_range and pos1 not in r_range:
-                        e += 1
-                        cnt += 1
+                        e += 1; cnt += 1
                         l2 = pos2 - start
                         if min_coverage <= l2:
-                            n += 1
-                            c += 1
+                            n += 1; c += 1
                             gene[j] = c
-                            self.overlap[i] = [j, self.chrom, "end pos",
-                                               (pos2 - pos1 - l2, pos2 - pos1),
-                                               (start, start + l2), thrhld, seq]
+                            self.overlap[read_id] = [j, self.chrom, "end pos",
+                                                     (pos2 - pos1 - l2, pos2 - pos1),
+                                                     (start, start + l2), thrhld, seq]
         # Save results into a txt file
         if save_file:
             file = open(file, "w")
@@ -164,12 +159,12 @@ class NanoporeReads:
                 "\t\tPos_On_Ref_Genome\t\tIR_Length_Threshold\n\n")
             for id in self.overlap:
                 file.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n\n".format(id, self.overlap[id][0],
-                                                               self.overlap[id][1],
-                                                               self.overlap[id][2],
-                                                               self.overlap[id][3],
-                                                               self.overlap[id][4],
-                                                               self.overlap[id][5],
-                                                               self.overlap[id][6]))
+                                                                       self.overlap[id][1],
+                                                                       self.overlap[id][2],
+                                                                       self.overlap[id][3],
+                                                                       self.overlap[id][4],
+                                                                       self.overlap[id][5],
+                                                                       self.overlap[id][6]))
             file.write("\n{} reads pass the threshold.\n".format(n))
             for name in gene:
                 file.write("{} in gene {}\n".format(gene[name], name))

@@ -29,7 +29,7 @@ def extract_fastq(fast5_fn):
 def get_fast5_id(fast5_fn):
     """
     :param fast5_fn:
-    :return:
+    :return: atr
     """
     try:
         root = h5py.File(fast5_fn, "r")
@@ -117,12 +117,10 @@ def load_npy(npy_fn):
     """
     return np.load(npy_fn)[0]
 
-
 def read_find_ip_results(fn):
     """
     Read a text file where save ... data, tab delimiter ...
-    :param fn:
-    :return:
+    :param fn: result file name
     """
     f = open(fn, "r")
     data = {}
