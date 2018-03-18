@@ -205,3 +205,8 @@ class NanoporeReads:
             return dist_matrix
         else:
             print("The list of imprinted reads is empty.")
+
+    def get_read_len(self, read):
+        """for id in self.reads:
+                read_len = self.get_read_len(self.reads[key])"""
+        return len(read[3])
