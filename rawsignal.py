@@ -22,20 +22,23 @@ def get_raw_dirc(directory, savepath, ir_pos, fastqpath = "/shares/coin/yao.li/d
         try:
             if fst5.endswith(".fast5"):
                 #sid = getID(directory+fst5)
-                sid = get_id(search_fastq(fst5, "/shares/coin/yao.li/data/fastq/"))
+                sid = get_id(search_fastq(fst5, fastqpath))
                 if sid in ir_pos:
                     poses = ir_pos[sid][2]
                     raw, fastq = get_raw_segment(directory+fst5, poses[0], poses[1], basecall_group)
-                    raw_signal[fst5] = (raw, fastq)
+                    raw_signal[sid] = (raw, fastq)
                     np.save(savepath + fst5.replace(".fast5", ".npy"), (raw, fastq))
         except StopIteration:
-            # print("{} Stop iteration".format(fst5))
             np.save(savepath + fst5.replace(".fast5", ".npy"), (raw, fastq))
             continue
     return raw_signal
 
 
-def find_haplotype(raw_signals):
+def find_haplotype(raw_signals, haplotypes):
     """For each raw_signal array, decide its haplotype."""
     #TODO: use read id should be straightforward. need a class?
-    pass
+    h1 = []
+    h2 = []
+    for signal_id in raw_signals:
+        type = haplotypes[signal_id]
+        h1.append(raw_signals[signal_id])

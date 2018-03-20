@@ -29,7 +29,7 @@ class SNPs:
         self.pos = int(pos)
         self.ref = ref
         self.alt = alt
-        self.mut = ref+alt
+        self.mut = ref + alt
         self.gt = gt
         self.type = ""
         self.detect_type()
@@ -97,10 +97,10 @@ def count_snps(all_snps):
     :param all_snps:
     :return:
     """
-    MUTATIONS = {"AG":0, "AC":0, "AT":0, "CA":0, "CT":0, "CG":0,
-                 "TA":0, "TC":0, "TG":0, "GA":0, "GC":0, "GT":0}
-    REF = {"A":0, "T":0, "G":0, "C":0}
-    ALT = {"A":0, "T":0, "G":0, "C":0}
+    MUTATIONS = {"AG": 0, "AC": 0, "AT": 0, "CA": 0, "CT": 0, "CG": 0,
+                 "TA": 0, "TC": 0, "TG": 0, "GA": 0, "GC": 0, "GT": 0}
+    REF = {"A": 0, "T": 0, "G": 0, "C": 0}
+    ALT = {"A": 0, "T": 0, "G": 0, "C": 0}
 
     for snp in all_snps:
         for mutation in MUTATIONS:
@@ -154,7 +154,8 @@ def get_snp_prob(all_snps, snp):
     else:
         print("Wrong ref or alt value.")
 
-    return p_ref*p, p_alt*p
+    return p_ref * p, p_alt * p
+
 
 def count_types(all_snps):
     """
@@ -212,7 +213,7 @@ class OverlappedRead:
                 self.snps.append(snp)
 
     def get_bases(self):
-        #TODO: make sure the bases are right. positions!
+        # TODO: make sure the bases are right. positions!
         """
         Get bases on SNP positions on read sequence.
         :return: list of string, bases, ATCG
@@ -312,7 +313,7 @@ class HmmHaplotypes:
         except ValueError:
             print("Wrong symbol.")
 
-    def cal_snp_prob(self, snp, n = 0):
+    def cal_snp_prob(self, snp, n=0):
         """
         Calculates a probability distribution <A, T, C, G> for each SNP position
         :return:
@@ -343,7 +344,7 @@ class HmmHaplotypes:
         return emission
 
     def initialize(self):
-        #TODO: when initialize, use all or half the reads to calculate emission probs
+        # TODO: when initialize, use all or half the reads to calculate emission probs
         """
         Initialize hmm model.
         Input data, randomly split SNPs data into two groups.
@@ -351,9 +352,9 @@ class HmmHaplotypes:
         Parameter B: emission probability.
         Parameter pi ? from split_data function?
         """
-        self.d0, self.d1 = split_data(self.READS, 0.5)
         self.transition = np.array([[1, 0], [0, 1]])
         self.emission = self.init_emission()
+        self.d0, self.d1 = split_data(self.READS, 0.5)
 
     def random_assign(self, r, c1, c2):
         """
@@ -370,7 +371,7 @@ class HmmHaplotypes:
             return c2.append(r)
 
     def cal_read_prob(self, read, state):
-        #TODO: to calculate read prob, use what algorithm? or just simply multiply prob of each locus?
+        # TODO: to calculate read prob, use what algorithm? or just simply multiply prob of each locus?
         """
         Calculate a read sequence prob.
         In a given model, calculate the probability of the read which has certain SNPs occurs,
@@ -385,12 +386,12 @@ class HmmHaplotypes:
         for list_pos, snp in enumerate(read.snps):
             read_symbols = read.get_bases()
             sym = self.symbol_to_index(read_symbols[list_pos])
-            if self.emission[list_pos, state, sym] != 0:#there should not be zeros
-                P = P * self.emission[list_pos, state, sym]
+            if self.emission[list_pos, state, sym] != 0:  # there should not be zeros
+                P *= self.emission[list_pos, state, sym]
         return P
 
-    def assign(self):
-        #TODO: updating old assignment? but it's the same with the new assignment?
+    def assign_reads(self):
+        # TODO: updating old assignment? but it's the same with the new assignment?
         """
         Calculate read probability and assign it to one state.
         Baum-Welch algorithm (unsupervised).
@@ -411,8 +412,8 @@ class HmmHaplotypes:
         P(Read1|Maternal) > P(Read1|Parental)
         Assign Read1 to Maternal model.
         """
-        self.old_d0 = self.d0
-        self.old_d1 = self.d1
+        self.old_d0 = self.d0[:]
+        self.old_d1 = self.d1[:]
 
         self.d0 = []
         self.d1 = []
@@ -449,29 +450,31 @@ class HmmHaplotypes:
         return snps
 
     def cal_emission(self):
-        #TODO: are emission probs changing(updating) as expeceted?
+        # TODO: why emission = 0?
         """
         Calculate the emission matrix. Update emission prob matrix.
         save and update.
         Based on new Maternal and Parental reads, calculate the new emission probability.
         Probabilities of observing A, T, G, C on certain SNP position (loci) in each model.
 
-        e.g. P(Gi|Dm0) = P(Dm0|Gi)P(Gi)/P(Dm0) ~ P(Dm0|Gi)P(Gi)
+        e.g. P(Ri|Dm0) = P(Dm0|Ri)P(Ri)/P(Dm0) ~ P(Dm0|Ri)P(Ri)
+        P(Ri|Dm0): given the model0 data, the probability of observing base Ri on i th position
         i: pos on ref genome, here consider list_pos equal to i...
         Dm0: All reads(bases on SNP pos) in model0.
-        P(Gi): prob of observing G on i th pos
+        P(Ri): prob of observing base Ri on i th pos
+        P(Dm0|Ri): given the base Ri on i th pos, the probability of observing model0 data
 
         self.emission[snp_list_pos, 0, ] = [P(A slp|D m0), P(T|Dm0), P(G|Dm0), P(C|Dm0)]
         """
-        #self.old_emission = self.emission
+        self.old_emission[:] = self.emission
 
         for read in self.d0:
             for snp in read.snps:
                 new_prob = [0, 0, 0, 0]
-                new_prob[self.symbol_to_index(snp.ref)],\
+                new_prob[self.symbol_to_index(snp.ref)], \
                 new_prob[self.symbol_to_index(snp.alt)] \
                     = get_snp_prob(self.get_snps(self.d0), snp)
-                self.emission[self.SNPs.index(snp), 0, ] = new_prob
+                self.emission[self.SNPs.index(snp): 0:] = new_prob
 
         for read in self.d1:
             for snp in read.snps:
@@ -479,10 +482,12 @@ class HmmHaplotypes:
                 new_prob[self.symbol_to_index(snp.ref)], \
                 new_prob[self.symbol_to_index(snp.alt)] \
                     = get_snp_prob(self.get_snps(self.d0), snp)
-                self.emission[self.SNPs.index(snp), 1, ] = new_prob
+                self.emission[self.SNPs.index(snp): 1:] = new_prob
+
+        return self.old_emission, self.emission
 
     def iteration_end(self):
-        #TODO: need to fix
+        # TODO: need to fix
         """
         Decide if the iteration should stop.
         When the emission probability stops changing
@@ -490,23 +495,23 @@ class HmmHaplotypes:
         stop iteration. The training of the model is complete.
         :return boolean
         """
-        if self.old_emission.any() == self.emission.any():
+        if self.old_d0 == self.d0:
             return True
         else:
             return False
 
     def train_model(self):
-        #TODO: finalizem
+        # TODO: finalize
         """in case of an infinite loop
         e.g.
         HmmHaplotypes.train_model(listOfReads)
         """
         self.initialize()
         while not self.iteration_end():
+            self.assign_reads()
             self.cal_emission()
-            self.assign()
-            print("Runing")
-        print("Stop")
+            print("Running")
+        print("Stop iteration")
 
     def viterbi(self):
         pass
@@ -537,7 +542,12 @@ class HmmHaplotypes:
         if alg not in algorithms:
             raise ValueError("This algorithm does not exist.")
         else:
-            pass
+            P_0 = self.cal_read_prob(read, 0)
+            P_1 = self.cal_read_prob(read, 1)
+            if P_0 > P_1:
+                return self.STATES[0]
+            elif P_0 < P_1:
+                return self.STATES[1]
 
     def get_states(self):
         """Return hidden states of the model."""
