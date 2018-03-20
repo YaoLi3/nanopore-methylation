@@ -15,9 +15,9 @@ from handlefiles import *
 #############
 if __name__ == "__main__":
     """Nanopore reads data"""
-    #DATA = NanoporeReads("data/chr19_merged.sam", "19")
-    #DATA.get_reads()  # 45946 reads
-    #overlap = DATA.find_imprinted(ImprintedRegions("data/ip_gene_pos.txt").get_regions(), 0, True, "find_imprinted_result.txt")
+    DATA = NanoporeReads("data/chr19_merged.sam", "19")
+    DATA.get_reads()  # 45946 reads
+    overlap = DATA.find_imprinted(ImprintedRegions("data/ip_gene_pos.txt").get_regions(), 0, True, "data/find_imprinted_result.txt")
     #  375 reads
 
     """read snps data"""
@@ -26,30 +26,6 @@ if __name__ == "__main__":
 
     """train HMM"""
     hmm = HmmHaplotypes(snp_data, read_snp, ["P", "M"], ["A", "T", "G", "C"])
-    print(hmm.old_emission[0, 0,])
-    print(hmm.emission[0, 0,])
-    hmm.initialize()
-    print(hmm.old_emission[0, 0, ])
-    print(hmm.emission[0, 0, ])
-    hmm.assign_reads()
-    print(len(hmm.old_d0))
-    print(len(hmm.d0))
-    o, e = hmm.cal_emission()
-    snp_index = snp_data.index(hmm.d0[0].snps[0])
-    print(o[0, 0, ])
-    print(e[0, 0, ])
-    print(o[snp_index, 0, ])
-    print(e[snp_index, 0, ])
-    hmm.assign_reads()
-    print(len(hmm.old_d0))
-    print(len(hmm.d0))
-    hmm.cal_emission()
-    hmm.assign_reads()
-    snp_index = snp_data.index(hmm.d0[0].snps[0])
-    print(o[snp_index, 0,])
-    print(e[snp_index, 0,])
-    print(len(hmm.old_d0))
-    print(len(hmm.d0))
 
     """raw signal data"""
     #raw_001 = get_raw_dirc("/shares/coin/yao.li/data/basecall_pass/", "/shares/coin/yao.li/signal/", overlap)
