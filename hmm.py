@@ -5,6 +5,13 @@ __author__ = Yao LI
 __email__ = yao.li.binf@gmail.com
 __date__ = 08/Feb/2018
 """
+import os
+import sys
+import glob
+import matplotlib
+import matplotlib.pyplot as plt
+import pandas as pd
+from scipy.optimize import minimize
 import numpy as np
 import random
 
@@ -295,13 +302,13 @@ class HmmHaplotypes:
         self.start = np.zeros((1, len(self.STATES)))
         self.transition = np.zeros((len(self.STATES), len(self.STATES)))
         self.emission = np.zeros((len(self.SNPs), len(self.STATES), len(self.OBSERVATIONS)))
+        self.emissions = []
 
         self.d0 = []  # data of state[0]
         self.d1 = []  # data of state[1]
 
         self.old_d0 = []
         self.old_d1 = []
-        self.old_emission = np.zeros((len(self.SNPs), len(self.STATES), len(self.OBSERVATIONS)))
 
     def symbol_to_index(self, s):
         """
@@ -319,7 +326,7 @@ class HmmHaplotypes:
         :return:
         """
         try:
-            prob_dist = [0.000001, 0.000001, 0.000001, 0.000001]
+            prob_dist = [0.1, 0.1, 0.1, 0.1]
             index1 = self.OBSERVATIONS.index(snp.ref)
             index2 = self.OBSERVATIONS.index(snp.alt)
             prob_dist[index1] = 10
@@ -354,6 +361,7 @@ class HmmHaplotypes:
         """
         self.transition = np.array([[1, 0], [0, 1]])
         self.emission = self.init_emission()
+        self.emissions.append(self.emission)
         self.d0, self.d1 = split_data(self.READS, 0.5)
 
     def random_assign(self, r, c1, c2):
@@ -369,6 +377,9 @@ class HmmHaplotypes:
         else:
             r.set_state(self.STATES[1])
             return c2.append(r)
+
+    def cal_base_prob(self, read, pos):
+        pass
 
     def cal_read_prob(self, read, state):
         # TODO: to calculate read prob, use what algorithm? or just simply multiply prob of each locus?
@@ -466,7 +477,6 @@ class HmmHaplotypes:
 
         self.emission[snp_list_pos, 0, ] = [P(A slp|D m0), P(T|Dm0), P(G|Dm0), P(C|Dm0)]
         """
-        self.old_emission[:] = self.emission
 
         for read in self.d0:
             for snp in read.snps:
@@ -483,8 +493,8 @@ class HmmHaplotypes:
                 new_prob[self.symbol_to_index(snp.alt)] \
                     = get_snp_prob(self.get_snps(self.d0), snp)
                 self.emission[self.SNPs.index(snp): 1:] = new_prob
-
-        return self.old_emission, self.emission
+        self.emissions.append(self.emission)
+        return self.emission
 
     def iteration_end(self):
         # TODO: need to fix
@@ -495,7 +505,7 @@ class HmmHaplotypes:
         stop iteration. The training of the model is complete.
         :return boolean
         """
-        if self.old_d0 == self.d0:
+        if self.emissions[-1].any() == self.emissions[-2].any():  # compare θ(t) and θ(t-1)
             return True
         else:
             return False
