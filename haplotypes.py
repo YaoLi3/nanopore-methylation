@@ -4,6 +4,9 @@ from scipy.optimize import minimize
 
 
 class Hmm:
+    """
+    Find the haplotype for each Nanopore sequencing read which has SNPs.
+    """
     def __init__(self, snp_data, read_data, ob, states):
         self.SNPs = snp_data
         self.READs = read_data
