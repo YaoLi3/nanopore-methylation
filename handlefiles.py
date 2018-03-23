@@ -89,7 +89,7 @@ def search_fastq(fast5_fn, fastq_path):
 
 def get_id(fastq_seq):
     """
-    Retrieve sequence ID for a read.
+    Retrieve sequence ID for a READs.
     :param fastq_seq: (list) a list contains four lines of a fastq file
     :return: id: (string) a sequence id
     """
@@ -136,7 +136,7 @@ def read_find_ip_results(fn):
 def get_positions(file_n):
     """
     :param file_n: (string) file name
-    :return: (dict) key = reads id, value = (start, end) genome positions of the read
+    :return: (dict) key = reads id, value = (start, end) genome positions of the READs
     """
     poses = {}
     f = open(file_n, "r")
@@ -151,8 +151,8 @@ def get_positions(file_n):
 def find_snps_in_read(read_f, snp_data):
     """
     :param read_f: (string) find_imprinted_result file name
-    :param snp_data: (list) [(snp genome position, a status, b status)]
-    :return: (dict) data: key = id, value = info. key = snp, seq.
+    :param snp_data: (list) [(SNPs genome position, a status, b status)]
+    :return: (dict) data: key = id, value = info. key = SNPs, seq.
     """
     data = {}
     ip_reads_regions = get_positions(read_f)

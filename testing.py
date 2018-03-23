@@ -4,32 +4,30 @@ __author__ = Yao LI
 __email__ = yao.li.binf@gmail.com
 __date__ = 28/02/2018
 """
-from nanoporereads import *
-from imprintedregions import *
 from hmm import *
 from rawsignal import *
-from handlefiles import *
+from xixi import *
 
 #############
 #  Testing  #
 #############
 if __name__ == "__main__":
     """Nanopore reads data"""
-    DATA = NanoporeReads("data/chr19_merged.sam", "19")
-    DATA.get_reads()  # 45946 reads
-    overlap = DATA.find_imprinted(ImprintedRegions("data/ip_gene_pos.txt").get_regions(), 0, True, "data/find_imprinted_result.txt")
+    #DATA = NanoporeReads("data/chr19_merged.sam", "19")
+    #DATA.get_reads()  # 45946 reads
+    #overlap = DATA.find_imprinted(ImprintedRegions("data/ip_gene_pos.txt").get_regions(), 0, True, "data/find_imprinted_result.txt")
     #  375 reads
 
-    """read snps data"""
-    snp_data = load_VCF("data/chr19.vcf") # list, 50746 SNPs on chr19
-    read_snp = process_all_reads("data/find_imprinted_result.txt", snp_data) # list, 322 reads
+    """reads & snps data"""
+    snps_data = load_VCF("data/chr19.vcf")  # list, 50746 SNPs on chr19
+    reads_data = process_all_reads("data/find_imprinted_result.txt", snps_data)  # list, 322 reads
 
     """train HMM"""
-    hmm = HmmHaplotypes(snp_data, read_snp, ["P", "M"], ["A", "T", "G", "C"])
+    h = Hmm(snps_data, reads_data)
+    init_random_emission = h.init_emission_matrix()
+    result = minimize(h.em, init_random_emission, args=reads_data, method='BFGS')
+    print(result)
 
-    """raw signal data"""
-    #raw_001 = get_raw_dirc("/shares/coin/yao.li/data/basecall_pass/", "/shares/coin/yao.li/signal/", overlap)
-    #raw_000 = get_raw_dirc("/shares/coin/yao.li/data/basecall_pass/", "/shares/coin/yao.li/signal/", overlap, basecall_group="Basecall_1D_000")
-    #print(np.load("data/chr19_merge.npy")[0])
-
-    """methylation clustering"""
+    """raw signals"""
+    #raws = get_raw_dirc("/shares/coin/yao.li/data/basecall_pass/", "/shares/coin/yao.li/signal/", overlap)
+    #h1, h2 = find_haplotype(raws, haplotypes)

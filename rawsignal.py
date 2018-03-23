@@ -5,17 +5,17 @@ __email__ = yao.li.binf@gmail.com
 __date__ = 07/02/2018
 """
 from h5utils import *
-from nanoporereads import *
 from handlefiles import *
 
 
 def get_raw_dirc(directory, savepath, ir_pos, fastqpath = "/shares/coin/yao.li/data/fastq/", basecall_group='Basecall_1D_001'):
     """
     :param directory: (string) the folder of fast5 files
-    :param qpath: (string) path of fastq files
     :param savepath: (string) path of output numpy files
     :param ir_pos: (dictionary) a NanoporeReads overlap dict
-    :return: (dict) raw signal and its fastq sequence
+    :param fastqpath: (string) path of fastq files
+    :param basecall_group
+    :return: (dict)
     """
     raw_signal = {}
     for fst5 in os.listdir(directory):
@@ -36,9 +36,9 @@ def get_raw_dirc(directory, savepath, ir_pos, fastqpath = "/shares/coin/yao.li/d
 
 def find_haplotype(raw_signals, haplotypes):
     """For each raw_signal array, decide its haplotype."""
-    #TODO: use read id should be straightforward. need a class?
     h1 = []
     h2 = []
     for signal_id in raw_signals:
         type = haplotypes[signal_id]
         h1.append(raw_signals[signal_id])
+    return h1, h2

@@ -8,6 +8,37 @@ import numpy as np
 import editdistance
 
 
+#############################
+#  Human Imprinted Regions  #
+#############################
+class ImprintedRegions:
+    """
+    Define the imprinted regions on human genome (EnSembl hg38).
+    Save the data in a dictionary.
+    """
+
+    def __init__(self, filename):
+        """
+        :param filename: (string) path of the file stores the
+                         information of certain imprinted regions.
+        """
+        self.regions = {}
+        file = open(filename, "r")
+        for line in file:
+            line = line.strip().split("\t")
+            self.regions[line[0]] = line[1:]
+        file.close()
+
+    def get_regions(self):
+        """
+        :return: (dictionary) key = gene names
+        """
+        return self.regions
+
+
+##################
+# Nanopore reads #
+##################
 class NanoporeReads:
     """
     Discover reads that are overlapped with human imprinted regions.
@@ -41,13 +72,13 @@ class NanoporeReads:
             else:
                 line = line.split("\t")
                 self.data[line[0]] = line[1:]
-                # calculate the region of a read mapped on to the reference genome
+                # calculate the region of a READs mapped on to the reference genome
                 start = int(line[3])
                 seq = line[9]
                 seq_len = len(seq)
                 end = (start + seq_len)
                 rname = line[2]
-                if rname == self.chrom:  # some read may map to other chromosomes
+                if rname == self.chrom:  # some READs may map to other chromosomes
                     self.reads[line[0]] = (start, end, rname, seq)
         file.close()
 
@@ -67,7 +98,7 @@ class NanoporeReads:
     def get_sequence(self, read_name):
         """
         :param read_name: (string) Nanopore basecalling ID
-        :return: (string) sequence of the given read
+        :return: (string) sequence of the given READs
         """
         return self.data[read_name][8]
 
@@ -81,12 +112,12 @@ class NanoporeReads:
             try:
                 self.data.get(qname)
             except ValueError:
-                print("This read does not exist.")
+                print("This READs does not exist.")
         return True
 
     def find_imprinted(self, regions, thrhld, save_file=False, file=None):
         """
-        For a given sam file, find out if there is any read in the file
+        For a given sam file, find out if there is any READs in the file
         is located in human genetic imprinted regions.
         :param regions: (dictionary) positions of human imprinted regions on reference genome
         :param thrhld: (float) a number between 0 and 1. portion? does not matter
@@ -94,8 +125,8 @@ class NanoporeReads:
         :param file: (string) path of the file to save results
         :return: (dictionary) key = imprinted reads ID
                             values: overlapped imprinted gene name
-                            which end of the read located in the imprinted region
-                            positions of overlap segment refer to the original read
+                            which end of the READs located in the imprinted region
+                            positions of overlap segment refer to the original READs
                             positions of overlap segment refer to the reference genome
                             threshold been used
         """
@@ -107,7 +138,7 @@ class NanoporeReads:
             end = int(regions[j][1])
             r_range = range(start, end + 1)
             chrom = regions[j][2]  # chr is just a number(str)
-            for i in self.reads:  # i = read ID
+            for i in self.reads:  # i = READs ID
                 # make sam id and fast5 id the same format
                 if i.find("_Basecall_1D_template"):
                     read_id = i.replace("_Basecall_1D_template", "")
@@ -124,7 +155,7 @@ class NanoporeReads:
                     if pos1 in r_range and pos2 in r_range:
                         b += 1; cnt += 1
                         l = pos2 - pos1
-                        # if both ends of the read located in an imprinted region
+                        # if both ends of the READs located in an imprinted region
                         if min_coverage <= l:
                             n += 1; c += 1
                             gene[j] = c
@@ -322,7 +353,7 @@ def count_snps(all_snps):
 
 def get_snp_prob(all_snps, snp):
     """
-    Given a snp, what's the frequency of happening
+    Given a SNPs, what's the frequency of happening
     its mutation (ref -> alt)? (ignore positions?)
     :param all_snps: list of SNPs objects
     :param snp: (SNPs) an instance
@@ -378,12 +409,19 @@ def count_types(all_snps):
     return indels, transitions, transversions
 
 
+def get_positions(all_snps):
+    pos = []
+    for snp in all_snps:
+        pos.append(snp.pos)
+    return pos
+
+
 ########################
-# Target read segments #
+# Target READs segments #
 ########################
 class OverlappedRead:
     """
-    A read object has 5 attributes:
+    A READs object has 5 attributes:
     its sequencer id,
     chromosome number,
     start position on reference genome (gh38),
@@ -408,17 +446,24 @@ class OverlappedRead:
 
     def detect_snps(self, SNPs_data):
         """
-        Find snps in one read.
+        Find snps in one READs.
         :param SNPs_data: (list) class SNPs objects
         """
-        for snp in SNPs_data:  # each snp instance, attr: chrom, id, pos, ref, alt, gt
+        for snp in SNPs_data:  # each SNPs instance, attr: chrom, id, pos, ref, alt, gt
             if snp.chrom == self.chrom and self.start <= snp.pos <= self.end:  # if position
                 self.snps.append(snp)
+
+    def get_base(self, pos):
+        try:
+            index = int(pos) - int(self.start)
+            return self.seq[index]
+        except IndexError:
+            print("snp pos not right.")
 
     def get_bases(self):
         # TODO: make sure the bases are right. positions!
         """
-        Get bases on SNP positions on read sequence.
+        Get bases on SNP positions on READs sequence.
         :return: list of string, bases, ATCG
         """
         for snp in self.snps:
@@ -430,7 +475,7 @@ class OverlappedRead:
         return self.id, self.snps, self.base
 
     def set_state(self, state):
-        """Set hidden markov state for a read."""
+        """Set hidden markov STATEs for a READs."""
         self.state = state
 
     def __str__(self):
@@ -468,3 +513,75 @@ def process_all_reads(read_file, SNPs_data):
                 all_reads.append(read)
     f.close()
     return all_reads
+
+
+########################################################
+# Manually find variants between ref and nanopore seqs #
+########################################################
+def read_ref_genome(fn, chr):
+    """
+    :param fn:
+    :param chr: (int)
+    :return:
+    """
+    chrs = ["chr1, chr19"]
+    l = open(fn).readlines()
+    region = []
+    for index, line in enumerate(l):
+        # line = line.strip().split()
+        # print(line)
+        if line.startswith(">chr{} ".format(chr)):
+            region.append(index + 1)
+        if line.startswith(">chr{} ".format(chr + 1)):  # need to change this part
+            region.append(index)
+    seq = ("".join(l[region[0]: region[1]])).replace("\n", "")  # 58617616 base pairs, chr19
+    return seq
+
+
+def compare_seqs(nano_seq, ref_seq):
+    """
+    :param nano_seq:
+    :param ref_seq:
+    :return:(dict) SNPs/same: key = position on the reads, value = (ref, alt)
+    """
+    snp = {}
+    same = {}
+    if len(nano_seq) != len(ref_seq):
+        raise ValueError("Sequences don't have the same length.")
+    else:
+        for pos in range(len(nano_seq)):
+            if nano_seq[pos] != ref_seq[pos]:
+                snp[pos] = (nano_seq[pos], ref_seq[pos])
+            elif nano_seq[pos] == ref_seq[pos]:
+                same[pos] = (nano_seq[pos], ref_seq[pos])
+        return snp, same
+
+
+def find_snps_in_aln(ip_reads, ref_genome, chrom="chr19"):
+    """
+    :param chrom:
+    :param ip_reads: (dict) imprinted nanopore reads results, id is key, ref positions is [3]
+    :param ref_genome:
+    :return:
+    """
+    nanopore_snp = {}
+    read = {}
+    for id in ip_reads:  # iterate through each nanopore READs sequence
+        # get where the nanopore READs mapped to the reference genome
+        ref_start, ref_end = (int(ip_reads[id][3][0]),
+                              int(ip_reads[id][3][1][1:]))
+        read_start, read_end = (int(ip_reads[id][2][0]),
+                                int(ip_reads[id][2][1][1:]))
+
+        aln_type = {}
+        # get nanopore sequence and its correlated reference genome sequence to compare
+        nanopore_seq = ip_reads[id][5][read_start - 1: read_end - 1]
+        ref_seq = ref_genome[ref_start - 1: ref_end - 1]
+
+        snp, same = compare_seqs(nanopore_seq, ref_seq)
+
+        aln_type["SNPs"] = snp
+        aln_type["same"] = same
+        read[id] = aln_type
+    nanopore_snp[chrom] = read
+    return nanopore_snp
