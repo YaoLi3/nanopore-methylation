@@ -19,6 +19,7 @@ class Hmm:
         # Save Model data
         self.m0 = 0
         self.m1 = 0
+
         self.m0_reads = []  # reads of model 0
         self.m1_reads = []  # data of model 1
         self.old_m0_reads = []
@@ -82,13 +83,13 @@ class Hmm:
 
     #def m(self, theta, all_reads): #??? e and m, separate? no?
         # M-step (first half)
-        self.m0 = -(sum(self.m0_llhd))  # model0 likelihood (neg log value)
-        self.m1 = -(sum(self.m1_llhd))  # model1 likelihood
-        print(self.m0, self.m1)
-        llhd_array = np.array((self.m0, self.m1))
+        m0 = -(sum(self.m0_llhd))  # model0 likelihood (neg log value)
+        m1 = -(sum(self.m1_llhd))  # model1 likelihood
+        print(m0, m1)
+        llhd_array = np.array((m0, m1))
         #return self.m0 + self.m1 # try to pack them into one array # numpy array?
         #return llhd_array
-        return self.m0
+        return m0
 
     def max_model_llhd(self, init_theta):
         """Find theta that can maximize the likelihood of a model given the current data.
@@ -98,7 +99,7 @@ class Hmm:
 
     def if_convergence(self):
         """Check if convergence happens."""
-        if self.m0 == self.old_m0_reads and self.m1 == self.old_m1_reads:
+        if self.m0_reads == self.old_m0_reads and self.m1_reads == self.old_m1_reads:
             return True
         else:
             return False
