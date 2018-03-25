@@ -67,6 +67,9 @@ class Hmm:
         # reset assignments
         self.m0_reads = []
         self.m1_reads = []
+        self.m0_llhd = []
+        self.m1_llhd = []
+
         for read in all_reads:
             l0 = read_log_likelihood(theta, 0, read)
             l1 = read_log_likelihood(theta, 1, read)
