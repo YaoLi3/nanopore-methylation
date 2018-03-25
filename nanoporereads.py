@@ -39,6 +39,41 @@ class ImprintedRegions:
 ##################
 # Nanopore reads #
 ##################
+class NR:
+    def __init__(self, id, seq, chr, poses):
+        self.id = id
+        self.raw_signal = None
+        self.sequence = seq
+        self.chr = chr
+        self.poses = poses
+        self.overlap_region = None
+        self.gene = ""
+        self.overlap_fastq = ""
+        self.overlap_pos = (0, 0)
+        self.haplotype = ""
+        self.snps = []
+
+
+def load_Sam(samfile, chrom):
+    data = []
+    file = open(samfile, "r")
+    for line in file:
+        if line.startswith("@"):  # ignore headers
+            pass
+        else:
+            line = line.split("\t")
+            rname = line[2]
+            if rname == chrom:  # some READs may map to other chromosomes
+                start = int(line[3])
+                seq = line[9]
+                seq_len = len(seq)
+                end = (start + seq_len)
+                nr = NR(line[0], seq, rname, (start, end))
+                data.append(nr)
+    file.close()
+    return data
+
+
 class NanoporeReads:
     """
     Discover reads that are overlapped with human imprinted regions.
