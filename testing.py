@@ -4,9 +4,10 @@ __author__ = Yao LI
 __email__ = yao.li.binf@gmail.com
 __date__ = 28/02/2018
 """
-from hmm import *
+from nanoporereads import *
+from haplotypes import *
 from rawsignal import *
-from xixi import *
+
 
 #############
 #  Testing  #
@@ -23,10 +24,10 @@ if __name__ == "__main__":
     reads_data = process_all_reads("data/find_imprinted_result.txt", snps_data)  # list, 322 reads
 
     """train HMM"""
-    h = Hmm(snps_data, reads_data)
+    h = Hmm(snps_data, reads_data, ["A", "G", "C", "T"], ["P", "M"])
     init_random_emission = h.init_emission_matrix()
     result = minimize(h.em, init_random_emission, args=reads_data, method='BFGS')
-    print(result)
+    print(result.x)
 
     """raw signals"""
     #raws = get_raw_dirc("/shares/coin/yao.li/data/basecall_pass/", "/shares/coin/yao.li/signal/", overlap)
