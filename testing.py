@@ -14,7 +14,7 @@ from snps import *
 #############
 if __name__ == "__main__":
     """Nanopore reads data"""
-    extract_fastq("/dict/fast5_folder/")
+    #extract_fastq("/dict/fast5_folder/")
     # Use Minimap2 map reads to reference, get SAM file
     # DATA = NanoporeReads("data/chr19_merged.sam", "19")
     # DATA.get_reads()  # 45946 reads
@@ -195,10 +195,16 @@ if __name__ == "__main__":
         for read in m05:
             a = 0; b = 0
             for snp in read.snps:
-                if snp.gt == "0|1":
+                base = read.get_base(snp.pos)
+                if snp.gt == "0|1" and base == snp.ref:
                     a += 1
-                elif snp.gt == "1|0":
+                elif snp.gt == "1|0" and base == snp.ref:
                     b += 1
+                elif snp.gt == "0|1" and base == snp.alt:
+                    b += 1
+                elif snp.gt == "1|0" and base == snp.alt:
+                    a += 1
+
             print(a, b)
             if a > b:
                 A.append(read)
@@ -210,14 +216,19 @@ if __name__ == "__main__":
         A1 = [];
         B1 = [];
         T1 = []
-        for read in m15:
-            a = 0;
-            b = 0
+        for read in m15: 
+            af = 0; aa = 0
+            bf = 0; ba = 0
             for snp in read.snps:
-                if snp.gt == "0|1":
+                base = read.get_base(snp.pos)
+                if snp.gt == "0|1" and base == snp.ref:
                     a += 1
-                elif snp.gt == "1|0":
+                elif snp.gt == "1|0" and base == snp.ref:
                     b += 1
+                elif snp.gt == "0|1" and base == snp.alt:
+                    b += 1
+                elif snp.gt == "1|0" and base == snp.alt:
+                    a += 1
             if a > b:
                 A1.append(read)
             elif a < b:
