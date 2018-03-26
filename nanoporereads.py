@@ -343,7 +343,7 @@ class SNPs:
         return self.chrom != other.chrom or self.pos != other.pos or self.mut != other.mut
 
 
-def load_VCF(vcf_file, nanopore_reads):
+def load_VCF(vcf_file, nanopore_reads=0):
     """
     Read a VCF file and return he data in it.
     :param vcf_file: (string) VCF file name
@@ -360,8 +360,8 @@ def load_VCF(vcf_file, nanopore_reads):
                 a, b = gt.split("|")
                 if chrom == "chr19" and a != b:  # only use heter snps
                     snp = SNPs(chrom, id, pos, ref, alt, gt)
-                    snp.detect_reads(nanopore_reads)
-                    if not snp.type == "indel" and snp.reads != []:
+                    #snp.detect_reads(nanopore_reads)
+                    if not snp.type == "indel": #and snp.reads != []:
                         all_snps.append(snp)
         f.close()
         return all_snps
@@ -535,7 +535,7 @@ class OverlappedRead:
         return self.id != other.id or self.snps != other.snps or self.state != other.state
 
 
-def process_all_reads(read_file, SNPs_data=0):
+def process_all_reads(read_file, SNPs_data):
     """
     1.Nanopore reads data.
     2.SNPs data.
@@ -552,13 +552,12 @@ def process_all_reads(read_file, SNPs_data=0):
             id, gene, chr, info, read_pos, ref_pos, thrhld, seq = line
             ref_pos = ref_pos.strip("()").split(",")
             read = OverlappedRead(id, chr, ref_pos[0], ref_pos[1][1:], seq)
-            all_reads.append(read)
-            #read.detect_snps(SNPs_data)
-            #if read.snps == []:
-                #continue
-            #else:
-                #read.get_bases()
-                #all_reads.append(read)
+            read.detect_snps(SNPs_data)
+            if read.snps == []:
+                continue
+            else:
+                read.get_bases()
+                all_reads.append(read)
     f.close()
     return all_reads
 
