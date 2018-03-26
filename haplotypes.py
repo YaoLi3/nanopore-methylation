@@ -26,6 +26,8 @@ class Hmm:
         self.old_m1_reads = []
         self.m0_llhd = []  # save reads likelihood log values for one model
         self.m1_llhd = []
+        self.m0_loci = []
+        self.m1_loci = []
 
     def init_emission_matrix(self):
         """
@@ -35,8 +37,8 @@ class Hmm:
             emission_prob = [0.1, 0.1, 0.1, 0.1]
             emission_prob[self.observations.index(snp.ref)] = 10
             emission_prob[self.observations.index(snp.alt)] = 10
-            self.theta[index, 0, ] = np.random.dirichlet(emission_prob)
-            self.theta[index, 1, ] = np.random.dirichlet(emission_prob)
+            self.theta[index, 0,] = np.random.dirichlet(emission_prob)
+            self.theta[index, 1,] = np.random.dirichlet(emission_prob)
         return self.theta
 
     def read_log_likelihood(self, t, state, r):
@@ -54,15 +56,23 @@ class Hmm:
             read_llhd += math.log2(base_llhd)
         return read_llhd
 
-    def e(self, theta, all_reads):
+    def log_likelihood_read(self, t, state, r):
         """
-        EM algorithm to decide the haplotype of each read.
-        :param theta:
-        :param all_reads:
-        :return: tuple, 2 model likelihood
+        Calculate the log value of probability of a read observed in a model.
+        :param t: theta, emission probs, 1-D numpy array
+        :param state: one of the model, int 0 or 1.
+        :param r: read
+        :return log value of likelihood of the read in given model
         """
-        # E-step
-        # save assignments from last iteration
+        read_llhd = 0
+        # observations = ["A", "G", "C", "T"]
+        for snp in r.snps:
+            base_llhd = t[self.SNPs.index(snp), state, self.observations.index(r.get_base(snp.pos))]
+            read_llhd += math.log2(base_llhd)
+        return read_llhd
+
+    def assign_reads(self, emission_prob):
+        # save previous iteration assignments
         self.old_m0_reads = copy.deepcopy(self.m0_reads)
         self.old_m1_reads = copy.deepcopy(self.m1_reads)
         # reset assignments
@@ -70,32 +80,76 @@ class Hmm:
         self.m1_reads = []
         self.m0_llhd = []
         self.m1_llhd = []
-
-        for read in all_reads:
-            l0 = self.read_log_likelihood(theta, 0, read)
-            l1 = self.read_log_likelihood(theta, 1, read)
+        self.m0_loci = []
+        self.m1_loci = []
+        # assign
+        for read in self.READs:
+            l0 = self.log_likelihood_read(emission_prob, 0, read)
+            l1 = self.log_likelihood_read(emission_prob, 1, read)
             if l0 > l1:
                 self.m0_reads.append(read)  # save read objects
                 self.m0_llhd.append(l0)  # save read likelihood log value
+                for snp in read.snps:
+                    if snp not in self.m0_loci:  # save snps for model
+                        self.m0_loci.append(snp)
             elif l0 < l1:
                 self.m1_reads.append(read)
                 self.m1_llhd.append(l1)
+                for snp in read.snps:
+                    if snp not in self.m1_loci:
+                        self.m1_loci.append(snp)
+        return self.m0_reads, self.m1_reads, self.m0_loci, self.m1_loci
 
-    def m(self, theta, all_reads):
+    def one_locus_llhd(self, locus_theta, locussnp, m_reads):
+        reads_on_locus = []
+        #observation = ["A", "G", "C", "T"]
+        locus_llhd = 0
+        for read in m_reads:
+            if read.start <= locussnp.pos <= read.end:
+                reads_on_locus.append(read)
+        try:
+            for read in reads_on_locus:
+                base_on_locus = read.get_base(locussnp.pos)
+                base_prob = math.log2(locus_theta[self.observations.index(base_on_locus)])
+                #print("on {} locus, the likelihood of read {} has base {} is {}"
+                    #.format(locussnp.pos, read.id, base_on_locus, base_prob))
+                locus_llhd += -base_prob
+        except ValueError:
+            pass
+        return locus_llhd
+
+    def maximize_likelihood_for_each_snp_pos(self, theta, state, m_reads, m_loci):
+        """
+        For only 1 state
+        Model 0
+        """
         # M-step (first half)
-        m0 = -(sum(self.m0_llhd))  # model0 likelihood (neg log value)
-        m1 = -(sum(self.m1_llhd))  # model1 likelihood
-        print(m0, m1)
-        llhd_array = np.array((m0, m1))
-        #return self.m0 + self.m1 # try to pack them into one array # numpy array?
-        #return llhd_array
-        return m0
+        loci_llhd = {}
+        for locus in m_loci:
+            theta_locus = theta[self.SNPs.index(locus), state, ]  # a atcg distribution on this position
 
-    def max_model_llhd(self, init_theta):
-        """Find theta that can maximize the likelihood of a model given the current data.
-        Note: minimize flatten numpy arrays into 1-d arrays."""
-        result_theta = minimize(self.m, init_theta, args=self.READs, method="BFGS")
-        return result_theta.x
+            locus_llhd = self.one_locus_llhd(theta_locus, locus, m_reads)
+            loci_llhd[locus] = locus_llhd
+            best_locus_atgc_distri = minimize(self.one_locus_llhd, theta_locus, args=(locus, m_reads), method="BFGS").x
+            #print("best atgc emission prob on locus {} is {}".format(locus.pos, best_locus_atgc_distri))
+            #print(best_locus_atgc_distri, theta_locus) # changes did happen on at least one base
+            new_emission_matrix = self.update_emission_matrix(locus, state, best_locus_atgc_distri, theta)
+        return new_emission_matrix
+
+    def update_emission_matrix(self, locus, state, best_emission_on_one_locus, previous_emission_matirx):
+        """
+        For only one state.
+        Model 0.
+        """
+        locus_in_matrix = self.SNPs.index(locus)
+        emission_matrix = copy.deepcopy(previous_emission_matirx)
+        emission_matrix[locus_in_matrix, state] = best_emission_on_one_locus
+        return emission_matrix
+
+    def if_array_sum_one(self, theta):
+        for (x, y, z), base_prob in np.ndenumerate(theta):
+            if sum(theta[x, y, ]) != 1:  # index is right
+                raise ValueError("Probability distribution does not sum to one.")
 
     def if_converge(self):
         """Check if convergence happens."""
@@ -108,13 +162,41 @@ class Hmm:
         """Find the emission probability distribution on each SNP locus
         that maximize the likelihood of two haplotype models.
         For a read, which model it most likely came from?"""
-        # while loop?
         init_theta = self.init_emission_matrix()
-        self.theta = self.max_model_llhd(init_theta)
+        print("init theta", init_theta[0, 0,])
+        model0, model1, model0_loci, model1_loci = self.assign_reads(init_theta)
+        print("init model0", len(model0), "init model1", len(model1))
+        print(len(model0_loci), len(model1_loci))
+        matrix_0_1 = self.maximize_likelihood_for_each_snp_pos(init_theta, 0, model0, model0_loci)
+        new_theta = self.maximize_likelihood_for_each_snp_pos(init_theta, 1, model1, model1_loci)
+        print(new_theta[0, 0])
+
+        print("old model0 {} new model0 {} old model1 {} new model1 {}".
+              format(len(self.m0_reads), len(self.m1_reads),
+                     len(self.old_m0_reads), len(self.old_m1_reads)))
+
+        time = 0
+        #while not self.if_converge():
+        while time <= 1000:
+            current_theta = copy.deepcopy(new_theta)
+            print("loop: current theta {}".format(current_theta[0]))
+            model0, model1, model0_loci, model1_loci = self.assign_reads(current_theta)
+            print(len(model0), len(model1))
+            print(len(model0_loci), len(model1_loci))
+            theta_0 = self.maximize_likelihood_for_each_snp_pos(current_theta, 0, model0, model0_loci)
+            theta_1 = self.maximize_likelihood_for_each_snp_pos(current_theta, 1, model1, model1_loci)
+            print("LOOP: old model0 {} new model0 {} old model1 {} new model1 {}".
+                  format(len(self.m0_reads), len(self.m1_reads),
+                         len(self.old_m0_reads), len(self.old_m1_reads)))
+            new_theta = self.theta
+            print("loop: new theta {}".format(new_theta[0]))
+            time += 1
+        print("time", time)
+        return new_theta
 
     # use matlab to make iteration (convergence process) plot, x = iteration time, y = 1.number of two groups? 2.theta?
 
-############# basic methods ##############
+    ############# basic methods ##############
     def get_states(self):
         """Return hidden states of the model."""
         return self.STATES
@@ -150,5 +232,3 @@ class Hmm:
 
     def __str__(self):
         return "This markov model. Amazing"
-
-
