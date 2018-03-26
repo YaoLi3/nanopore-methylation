@@ -302,6 +302,12 @@ class SNPs:
         self.gt = gt
         self.type = ""
         self.detect_type()
+        self.reads = []
+
+    def detect_reads(self, reads_data):
+        for read in reads_data:
+            if self.chrom == read.chrom and read.start <= self.pos <= read.end:
+                self.reads.append(read)
 
     def detect_type(self):
         """
@@ -323,7 +329,10 @@ class SNPs:
                     self.type = "transversion"
 
     def __str__(self):
-        return "{}: {}\tREF:{}, ALT:{}\tTYPE:{}".format(self.chrom, self.pos, self.ref, self.alt, self.type)
+        return "{}: {}\tREF:{}, ALT:{}\tTYPE:{}. has {} nanopore reads.".format(self.chrom, self.pos, self.ref, self.alt, self.type, len(self.reads))
+
+    def __hash__(self):
+        return hash((self.chrom, self.pos))
 
     def __eq__(self, other):
         """Override the default Equals behavior"""
@@ -334,7 +343,7 @@ class SNPs:
         return self.chrom != other.chrom or self.pos != other.pos or self.mut != other.mut
 
 
-def load_VCF(vcf_file, count_index=False):
+def load_VCF(vcf_file, nanopore_reads):
     """
     Read a VCF file and return he data in it.
     :param vcf_file: (string) VCF file name
@@ -351,7 +360,8 @@ def load_VCF(vcf_file, count_index=False):
                 a, b = gt.split("|")
                 if chrom == "chr19" and a != b:  # only use heter snps
                     snp = SNPs(chrom, id, pos, ref, alt, gt)
-                    if not snp.type == "indel":
+                    snp.detect_reads(nanopore_reads)
+                    if not snp.type == "indel" and snp.reads != []:
                         all_snps.append(snp)
         f.close()
         return all_snps
@@ -514,7 +524,7 @@ class OverlappedRead:
         self.state = state
 
     def __str__(self):
-        return "{}: {},{} \tSNPs:{}".format(self.chrom, self.start, self.end, len(self.snps))
+        return "{}:\t{}:{},{}".format(self.id, self.chrom, self.start, self.end)
 
     def __eq__(self, other):
         """Override the default Equals behavior"""
@@ -525,14 +535,14 @@ class OverlappedRead:
         return self.id != other.id or self.snps != other.snps or self.state != other.state
 
 
-def process_all_reads(read_file, SNPs_data):
+def process_all_reads(read_file, SNPs_data=0):
     """
     1.Nanopore reads data.
     2.SNPs data.
 
     :param read_file:
     :param SNPs_data:
-    :return: (list) : OverlappedReads instances (total 375 of them)
+    :return: (list) : a list of OverlappedReads instances (total 375 of them)
     """
     f = open(read_file, "r")
     all_reads = []
@@ -542,10 +552,13 @@ def process_all_reads(read_file, SNPs_data):
             id, gene, chr, info, read_pos, ref_pos, thrhld, seq = line
             ref_pos = ref_pos.strip("()").split(",")
             read = OverlappedRead(id, chr, ref_pos[0], ref_pos[1][1:], seq)
-            read.detect_snps(SNPs_data)
-            if not read.snps == []:
-                read.get_bases()
-                all_reads.append(read)
+            all_reads.append(read)
+            #read.detect_snps(SNPs_data)
+            #if read.snps == []:
+                #continue
+            #else:
+                #read.get_bases()
+                #all_reads.append(read)
     f.close()
     return all_reads
 
