@@ -34,11 +34,15 @@ def get_raw_dirc(directory, savepath, ir_pos, fastqpath = "/shares/coin/yao.li/d
     return raw_signal
 
 
-def find_haplotype(raw_signals, haplotypes):
+def find_haplotype(raw_signals, m0, m1):
     """For each raw_signal array, decide its haplotype."""
-    h1 = []
-    h2 = []
-    for signal_id in raw_signals:
-        type = haplotypes[signal_id]
-        h1.append(raw_signals[signal_id])
+    h1 = {}
+    h2 = {}
+    try:
+        for read in m0:
+            h1[read.id] = raw_signals[read.id]
+        for read in m1:
+            h2[read.id] = raw_signals[read.id]
+    except IndexError:
+        print("cc")
     return h1, h2
