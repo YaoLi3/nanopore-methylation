@@ -248,7 +248,7 @@ class OverlappedRead:
         return self.id, self.snps, self.base
 
     def set_state(self, state):
-        """Set hidden markov STATEs for a READs."""
+        """Set hidden markov models for a READs."""
         self.state = state
 
     def __str__(self):
