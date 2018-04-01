@@ -117,7 +117,6 @@ def load_npy(npy_fn):
     """
     return np.load(npy_fn)[0]
 
-
 def read_find_ip_results(fn):
     """
     Read a text file where save ... data, tab delimiter ...

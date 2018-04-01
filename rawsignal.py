@@ -4,8 +4,13 @@ __author__ = Yao LI
 __email__ = yao.li.binf@gmail.com
 __date__ = 07/02/2018
 """
-from h5utils import *
-from handlefiles import *
+import os
+import numpy as np
+from handlefiles import get_id
+from handlefiles import search_fastq
+from h5utils import get_raw_segment
+
+#from handlefiles import 
 
 
 def get_raw_dirc(directory, savepath, ir_pos, fastqpath = "/shares/coin/yao.li/data/fastq/", basecall_group='Basecall_1D_001'):
@@ -34,15 +39,10 @@ def get_raw_dirc(directory, savepath, ir_pos, fastqpath = "/shares/coin/yao.li/d
     return raw_signal
 
 
-def find_haplotype(raw_signals, m0, m1):
+def find_haplotype(raw_signals, haplotypes):
     """For each raw_signal array, decide its haplotype."""
-    h1 = {}
-    h2 = {}
-    try:
-        for read in m0:
-            h1[read.id] = raw_signals[read.id]
-        for read in m1:
-            h2[read.id] = raw_signals[read.id]
-    except IndexError:
-        print("cc")
+    h1 = []
+    h2 = []
+    for signal_id in raw_signals:
+        h1.append(raw_signals[signal_id])
     return h1, h2

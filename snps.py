@@ -71,7 +71,7 @@ class SNPs:
         return self.chrom != other.chrom or self.pos != other.pos or self.mut != other.mut
 
 
-def load_VCF(vcf_file):
+def load_VCF(vcf_file, nanopore_reads=0):
     """
     Read a VCF file and return he data in it.
     :param vcf_file: (string) VCF file name
@@ -88,7 +88,8 @@ def load_VCF(vcf_file):
                 a, b = gt.split("|")
                 if chrom == "chr19" and a != b:  # only use heter snps
                     snp = SNPs(chrom, id, pos, ref, alt, gt)
-                    if not snp.type == "indel":
+                    #snp.detect_reads(nanopore_reads)
+                    if not snp.type == "indel": #and snp.reads != []:
                         all_snps.append(snp)
         f.close()
         return all_snps
@@ -96,14 +97,6 @@ def load_VCF(vcf_file):
         raise RuntimeError("Not the right values to unpack.")
     except IOError:
         raise IOError("This vcf file is not available.")
-
-
-def count_snp_reads(all_snps, all_reads):
-    """
-    Count reads mapped to each reads.
-    """
-    for snp in all_snps:
-        snp.detect_reads(all_reads)
 
 
 def count_snps(all_snps):
@@ -221,6 +214,7 @@ class OverlappedRead:
         self.end = int(pos2)
         self.seq = seq
         self.snps = []
+        self.snps_id = []
         self.base = []
         self.state = ""
 
@@ -229,16 +223,17 @@ class OverlappedRead:
         Find snps in one READs.
         :param SNPs_data: (list) class SNPs objects
         """
-        for snp in SNPs_data:  # each SNPs instance, attr: chrom, id, pos, ref, alt, gt
+        for snp_id,snp in enumerate(SNPs_data):  # each SNPs instance, attr: chrom, id, pos, ref, alt, gt
             if snp.chrom == self.chrom and self.start <= snp.pos <= self.end:  # if position
                 self.snps.append(snp)
+                self.snps_id.append(snp_id)
 
     def get_base(self, pos):
         try:
             index = int(pos) - int(self.start)
             return self.seq[index]
         except IndexError:
-            print("snp pos not right.")
+            raise IndexError("snp pos not right.")
 
     def get_bases(self):
         # TODO: make sure the bases are right. positions!
@@ -255,7 +250,7 @@ class OverlappedRead:
         return self.id, self.snps, self.base
 
     def set_state(self, state):
-        """Set hidden markov models for a READs."""
+        """Set hidden markov STATEs for a READs."""
         self.state = state
 
     def __str__(self):
