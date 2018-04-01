@@ -4,17 +4,23 @@ __author__ = Yao LI
 __email__ = yao.li.binf@gmail.com
 __date__ = 28/02/2018
 """
-from nanoporereads import *
-from haplotypes import *
-from rawsignal import *
-from snps import *
+#from nanoporereads import *
+#from haplotypes import *
+#from rawsignal import *
+#from snps import *
+import math
+import numpy as np
+from scipy.optimize import minimize
+from snps import load_VCF
+from snps import process_all_reads
+from haplotypes import Hmm
 
 #############
 #  Testing  #
 #############
 if __name__ == "__main__":
     """Nanopore reads data"""
-    # extract_fastq("/dict/fast5_folder/")
+    #extract_fastq("/dict/fast5_folder/")
     # Use Minimap2 map reads to reference, get SAM file
     # DATA = NanoporeReads("data/chr19_merged.sam", "19")
     # DATA.get_reads()  # 45946 reads
@@ -24,25 +30,37 @@ if __name__ == "__main__":
     """reads & snps data"""
     snps_data = load_VCF("data/chr19.vcf")  # list, 50746 SNPs on chr19
     reads_data = process_all_reads("data/find_imprinted_result.txt", snps_data)  # list, 302 reads
-    count_snp_reads(snps_data, reads_data)
+
+    # snps = []
+    # for read in reads_data:
+    # for snp in read.snps:
+    # if snp not in snps:
+    # snps.append(snp)
 
     """train HMM"""
-    model = Hmm(snps_data, reads_data, ["A", "G", "C", "T"], ["P", "M"])
-    # initial
-    matrix_init = model.init_emission_matrix()
-    m0, m1, m0_pos, m1_pos = model.assign_reads(matrix_init)
-    # 1st round
-    #model.maximize_likelihood_for_each_snp_pos(matrix_init, 0, m0, m0_pos)  # NOTE: m0_pos right now is np array, zeros, float64. does not have chrom attribute
-    #matrix_old = model.maximize_likelihood_for_each_snp_pos(matrix_init, 1, m0, m0_pos)
-    #m01, m11, m0_pos1, m1_pos1 = model.assign_reads(matrix_old)
-    # 2nd round
-    #model.maximize_likelihood_for_each_snp_pos(matrix_old, 0, m01, m0_pos1)
-    #matrix_new = model.maximize_likelihood_for_each_snp_pos(matrix_old, 1, m01, m0_pos1)
-    #m02, m12, m0_pos2, m1_pos2 = model.assign_reads(matrix_new)
 
-    print(m0_pos)
-    print(type(m0_pos))
 
-    """raw signals"""
-    # raws = get_raw_dirc("/shares/coin/yao.li/data/basecall_pass/", "/shares/coin/yao.li/signal/", overlap)
-    # h1, h2 = find_haplotype(raws, m02, m12)
+    h = Hmm(snps_data, ["P", "M"])
+    iter_num = 10
+    h.init_emission_matrix()
+    for _ in range(iter_num):
+        sr_dict = h.snp_read_dict(reads_data)
+        pm_llhd = h.assign_reads(reads_data)
+#        print(h.theta[9519,:])
+        print((np.sum(pm_llhd[:,1]),np.sum(pm_llhd[:,0])))
+        h.update(reads_data,sr_dict, pm_llhd,hard = False,pseudo_base = 1e-4)
+    
+    # try:
+#    matrix = h.init_emission_matrix()
+#    m0, m1, m0_pos, m1_pos = assign_reads(matrix, reads_data, snps_data)
+#    print(len(m0),len(m1))
+#    for i in range(iter_num):
+#        matrix = maximize_likelihood_for_each_snp(matrix,0,m0,m0_pos,snps_data)
+#        matrix = maximize_likelihood_for_each_snp(matrix,1,m1,m1_pos,snps_data)
+#        m0,m1,m0_pos,m1_pos = assign_reads(matrix,reads_data,snps_data)
+#        print(len(m0),len(m1))
+
+
+
+
+
