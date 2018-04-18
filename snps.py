@@ -81,7 +81,7 @@ class SNP:
         return self.chrom != other.chrom or self.pos != other.pos or self.mut != other.mut
 
 
-def load_VCF(vcf_file, nanopore_reads):
+def load_VCF(vcf_file):
     """
     Read a VCF file and return he data in it.
     :param vcf_file: (string) VCF file name
@@ -98,7 +98,6 @@ def load_VCF(vcf_file, nanopore_reads):
                 a, b = gt.split("|")
                 if a != b:  # only use het snps
                     snp = SNP(chrom, id, pos, ref, alt, gt)
-                    snp.detect_mapped_reads(nanopore_reads)
                     if not snp.type == "indel":  # and snp.reads != []:
                         all_snps.append(snp)
         f.close()
@@ -107,6 +106,11 @@ def load_VCF(vcf_file, nanopore_reads):
         raise RuntimeError("Not the right values to unpack.")
     except IOError:
         raise IOError("This vcf file is not available.")
+
+
+def map_reads(snps, reads):
+    """Find reads mapped to each SNP position."""
+    [snp.detect_mapped_reads(reads) for snp in snps]
 
 
 def get_positions(all_snps):

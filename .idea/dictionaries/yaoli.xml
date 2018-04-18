@@ -1,12 +1,21 @@
 <component name="ProjectDictionaryState">
   <dictionary name="yaoli">
     <words>
+      <w>atcg</w>
+      <w>atgc</w>
       <w>basecall</w>
       <w>basecalled</w>
+      <w>bnds</w>
+      <w>distrib</w>
       <w>emiss</w>
       <w>fastq</w>
       <w>indels</w>
+      <w>llhd</w>
       <w>nano</w>
+      <w>probs</w>
+      <w>scipy</w>
+      <w>slsqp</w>
+      <w>snps</w>
       <w>thrhld</w>
       <w>transversions</w>
     </words>

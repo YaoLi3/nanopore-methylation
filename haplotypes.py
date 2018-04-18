@@ -4,7 +4,7 @@ import math
 
 class Hmm:
     """
-    Find the haplotype for each Nanopore sequencing read which has SNPs.
+    Find the haplotype for SNPs based on Nanopore sequencing reads.
     """
 
     def __init__(self, snp_data, states, ob=None):

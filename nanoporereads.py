@@ -4,7 +4,6 @@ __author__ = Yao LI
 __email__ = yao.li.binf@gmail.com
 __date__ = 08/02/2018
 """
-import pickle
 
 
 #############################
@@ -46,7 +45,6 @@ def read_imprinted_data(fn):
 class NanoporeRead:
     """
     A nanopore sequencing read instance. NA12878 data.
-
     """
 
     def __init__(self, id, chrom, fastq_seq, start, end, rs=None):
@@ -77,11 +75,7 @@ class NanoporeRead:
         self.model = None  # HMM model
 
     def if_in_imprinted_region(self, ip_regions):
-        """
-        :param ip_regions:
-        :param thrhld:
-        :return:
-        """
+        """Decide if the read has at least one base overlapping with any imprinted region."""
         for region in ip_regions:
             if self.chr == region.chr:
                 if region.start <= self.start <= region.end or region.start <= self.end <= region.end:
@@ -146,6 +140,7 @@ class NanoporeRead:
 def load_sam_file(samfile, chromosome):
     """
     Read data stored in a SAM file, convert it into NanoporeRead class objects.
+    :param chromosome: (int) chromosome number
     :param samfile: (str) a sam file name
     :return: (list) a list of NanoporeRead instances
     """
@@ -170,10 +165,7 @@ def get_overlapped_reads(reads, regions):
         is located in human genetic imprinted regions.
         """
         overlapped_reads = []
-        f = open("overlapped_reads.obj", "wb")
         for read in reads:
             if read.if_in_imprinted_region(regions):
                 overlapped_reads.append(read)
-                pickle.dump(read, f)
-        f.close()
         return overlapped_reads

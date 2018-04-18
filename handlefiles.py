@@ -7,6 +7,7 @@ __date__ = 20/02/2018
 import os
 import h5py
 import numpy as np
+import pickle
 
 
 def extract_fastq(fast5_fn):
@@ -117,6 +118,7 @@ def load_npy(npy_fn):
     """
     return np.load(npy_fn)[0]
 
+
 def read_find_ip_results(fn):
     """
     Read a text file where save ... data, tab delimiter ...
@@ -166,3 +168,20 @@ def find_snps_in_read(read_f, snp_data):
         if not snps == []:
             data[id] = snps
     return data
+
+
+def save_objects(filename, reads):
+    """Save NanoporeRead objects into a file"""
+    with open(filename, "wb") as f:
+        for read in reads:
+            pickle.dump(read, f)
+
+
+def load_objects_file(filename):
+    """Read a obj file, return a list of NanoporeRead objects"""
+    with open(filename, "rb") as f:
+        while True:
+            try:
+                yield pickle.load(f)
+            except EOFError:
+                break
