@@ -10,10 +10,8 @@ from handlefiles import get_id
 from handlefiles import search_fastq
 from h5utils import get_raw_segment
 
-#from handlefiles import 
 
-
-def get_raw_dirc(directory, savepath, ir_pos, fastqpath = "/shares/coin/yao.li/data/fastq/", basecall_group='Basecall_1D_001'):
+def get_raw_dirc(directory, savepath, ir_pos, fastqpath="/shares/coin/yao.li/data/fastq/", basecall_group='Basecall_1D_001'):
     """
     :param directory: (string) the folder of fast5 files
     :param savepath: (string) path of output numpy files
