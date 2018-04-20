@@ -177,11 +177,16 @@ def save_objects(filename, reads):
             pickle.dump(read, f)
 
 
-def load_objects_file(filename):
-    """Read a obj file, return a list of NanoporeRead objects"""
+def load_pickle_file(filename):
+    """Read a pickle file, return a generator"""
     with open(filename, "rb") as f:
         while True:
             try:
                 yield pickle.load(f)
             except EOFError:
                 break
+
+
+def load_objects(filename):
+    """Return a list of objects"""
+    return list(load_pickle_file(filename))

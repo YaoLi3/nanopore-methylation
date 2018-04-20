@@ -95,6 +95,10 @@ class NanoporeRead:
                 self.snps.append(snp)
                 self.snps_id.append(snp_id)
 
+    def get_raw_signals(self):
+        """Extract raw signals for the read"""
+        pass
+
     def get_bases(self):
         """
         Get bases on SNP positions on READs sequence.
@@ -169,3 +173,8 @@ def get_overlapped_reads(reads, regions):
             if read.if_in_imprinted_region(regions):
                 overlapped_reads.append(read)
         return overlapped_reads
+
+
+def get_snps_for_reads(reads, snps):
+    for read in reads:
+        read.detect_snps(snps)
