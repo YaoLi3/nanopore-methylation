@@ -4,6 +4,7 @@ import math
 
 class Hmm:
     """
+    A hidden markov model.
     Find the haplotype for SNPs based on Nanopore sequencing reads.
     """
 
@@ -39,15 +40,18 @@ class Hmm:
         :param snps_id: list of index of the snps of the read
         :return log value of likelihood of the read in given model
         """
-        read_llhd = 0
-        for index, snp in enumerate(r.snps):
-            #print(snp)
-            t = self.get_emission()  # !, ? have to
-            base_llhd = t[r.snps_id[index], state, self.observations.index(r.get_base(snp.pos))]  # new way to index
-            #print("base {} likelihood on this snp position is: {}".format(r.get_base(snp.pos), base_llhd))
-            read_llhd += math.log(base_llhd)
-        #print("read likelihood of two models: {}".format(read_llhd))
-        return read_llhd
+        try:
+            read_llhd = 0
+            for index, snp in enumerate(r.snps):
+                #print(snp)
+                t = self.get_emission()  # !, ? have to
+                base_llhd = t[r.snps_id[index], state, self.observations.index(r.get_base(snp.pos))]  # new way to index
+                #print("base {} likelihood on this snp position is: {}".format(r.get_base(snp.pos), base_llhd))
+                read_llhd += math.log(base_llhd)
+            #print("read likelihood of two models: {}".format(read_llhd))
+            return read_llhd
+        except ValueError:
+            pass
 
     def assign_reads(self, reads):  # new way to assign, what's changed??  just use index to save
         """Calculate the parental-maternal likelihood of the reads.
@@ -73,20 +77,23 @@ class Hmm:
             pseudo_base(Float): Probability normalized by adding this pseudo_base, 
                 e.g. p[i] = (count[i]+pseudo_base)/(count[i]+4*pseudo_base).
         """
-        for snp_id in sr_dict.keys():
-            snp = self.SNPs[snp_id]
-            count = np.zeros((len(self.observations), 2))  # i might write similar thing before
-            count[:] = pseudo_base  # what is this?
-            for read_id in sr_dict[snp_id]:  # read_id = read index in list reads
-                read = reads[read_id]
-                if hard:
-                    pm_type = np.argmax(pm_llhd[read_id, :])  # what is this?
-                    count[self.observations.index(read.get_base(snp.pos)), pm_type] += 1
-                else:  # soft
-                    count[self.observations.index(read.get_base(snp.pos)), 0] += (pm_llhd[read_id, 0] * 1)
-                    count[self.observations.index(read.get_base(snp.pos)), 1] += (pm_llhd[read_id, 1] * 1)
-            for state in range(2):
-                self.theta[snp_id, state, :] = (count[:, state] / np.sum(count[:, state]))
+        try:
+            for snp_id in sr_dict.keys():
+                snp = self.SNPs[snp_id]
+                count = np.zeros((len(self.observations), 2))  # i might write similar thing before
+                count[:] = pseudo_base  # what is this?
+                for read_id in sr_dict[snp_id]:  # read_id = read index in list reads
+                    read = reads[read_id]
+                    if hard:
+                        pm_type = np.argmax(pm_llhd[read_id, :])  # what is this?
+                        count[self.observations.index(read.get_base(snp.pos)), pm_type] += 1
+                    else:  # soft
+                        count[self.observations.index(read.get_base(snp.pos)), 0] += (pm_llhd[read_id, 0] * 1)
+                        count[self.observations.index(read.get_base(snp.pos)), 1] += (pm_llhd[read_id, 1] * 1)
+                for state in range(2):
+                    self.theta[snp_id, state, :] = (count[:, state] / np.sum(count[:, state]))
+        except ValueError:
+            pass
 
     def snp_read_dict(self, reads):  # maybe can be changed, this function is already writen elsewhere
         """Find the reads on a given snp position"""
