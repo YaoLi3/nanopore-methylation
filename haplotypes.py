@@ -32,28 +32,27 @@ class Hmm:
             self.theta[index, 1, ] = np.random.dirichlet(emission_prob)
         return self.theta
 
-    def read_log_likelihood(self, state, r):
+    def read_log_likelihood(self, state, read):
         """
         Calculate the log value of probability of a read observed in a model.
         :param state: one of the model, int 0 or 1.
-        :param r: read
+        :param read: (NanoporeRead) read
         :param snps_id: list of index of the snps of the read
         :return log value of likelihood of the read in given model
         """
         try:
             read_llhd = 0
-            for index, snp in enumerate(r.snps):
-                #print(snp)
+            for index, snp in enumerate(read.snps):
                 t = self.get_emission()  # !, ? have to
-                base_llhd = t[r.snps_id[index], state, self.observations.index(r.get_base(snp.pos))]  # new way to index
-                #print("base {} likelihood on this snp position is: {}".format(r.get_base(snp.pos), base_llhd))
+                base_llhd = t[read.snps_id[index], state, self.observations.index(read.get_base(snp.pos))]
+                #print("base {} likelihood on this snp position is: {}".format(read.get_base(snp.pos), base_llhd))
                 read_llhd += math.log(base_llhd)
             #print("read likelihood of two models: {}".format(read_llhd))
             return read_llhd
-        except ValueError:
+        except ValueError:  # None value in the list, TODO: fix
             pass
 
-    def assign_reads(self, reads):  # new way to assign, what's changed??  just use index to save
+    def assign_reads(self, reads):
         """Calculate the parental-maternal likelihood of the reads.
         Expectation step in EM algorithm.
         
@@ -66,7 +65,7 @@ class Hmm:
             pm_llhd[idx, 1] = self.read_log_likelihood(1, read)
         return pm_llhd
 
-    def update(self, reads, sr_dict, pm_llhd, hard=True, pseudo_base=1e-1):  # new way to optimize. MAIN
+    def update(self, reads, sr_dict, pm_llhd, hard=True, pseudo_base=1e-1):
         """Update the probability matrix
         
         Args:
@@ -80,14 +79,14 @@ class Hmm:
         try:
             for snp_id in sr_dict.keys():
                 snp = self.SNPs[snp_id]
-                count = np.zeros((len(self.observations), 2))  # i might write similar thing before
-                count[:] = pseudo_base  # what is this?
-                for read_id in sr_dict[snp_id]:  # read_id = read index in list reads
+                count = np.zeros((len(self.observations), 2))
+                count[:] = pseudo_base
+                for read_id in sr_dict[snp_id]:
                     read = reads[read_id]
                     if hard:
-                        pm_type = np.argmax(pm_llhd[read_id, :])  # what is this?
+                        pm_type = np.argmax(pm_llhd[read_id, :])
                         count[self.observations.index(read.get_base(snp.pos)), pm_type] += 1
-                    else:  # soft
+                    else:
                         count[self.observations.index(read.get_base(snp.pos)), 0] += (pm_llhd[read_id, 0] * 1)
                         count[self.observations.index(read.get_base(snp.pos)), 1] += (pm_llhd[read_id, 1] * 1)
                 for state in range(2):
@@ -95,23 +94,22 @@ class Hmm:
         except ValueError:
             pass
 
-    def snp_read_dict(self, reads):  # maybe can be changed, this function is already writen elsewhere
-        """Find the reads on a given snp position"""
-        sr_dict = {}
-        for read_id, read in enumerate(reads):  # this step is fine
-            #print("snps in site this read is:".format(read.snps))
-            for index, snp in enumerate(read.snps):  # why? not excuted ?
-                snp_id = read.snps_id[index]
-                if snp_id not in sr_dict.keys():
-                    sr_dict[snp_id] = [read_id]
-                else:
-                    sr_dict[snp_id].append(read_id)
-                    #print(read_id)
-        return sr_dict
+    def snps_assignments(self):
+        """For a SNP, its likelihood of happened in 2 models,
+        Which one is higher/more likely?"""
+        m0_snps = []
+        m1_snps = []
+        for snp_id, snp in enumerate(self.theta):
+            alt_base = self.observations.index(self.SNPs[snp_id].alt)
+            if self.theta[snp_id, 0, alt_base] > self.theta[snp_id, 1, alt_base]:
+                m0_snps.append(snp_id)
+            elif self.theta[snp_id, 0, alt_base] < self.theta[snp_id, 1, alt_base]:
+                m1_snps.append(snp_id)
+        return m0_snps, m1_snps
 
     def get_states(self):
         """Return hidden states of the model."""
-        return self.STATES
+        return self.STATEs
 
     def get_observs(self):
         """Return the observations of the model."""
@@ -124,7 +122,7 @@ class Hmm:
 
     def set_states(self, states):
         """Set states."""
-        self.STATES = states
+        self.STATEs = states
 
     def set_observs(self, ob):
         """Set observations from states."""
@@ -133,3 +131,37 @@ class Hmm:
     def get_data(self):
         """Return data."""
         return self.m0, self.m1
+
+    def save_model(self, fn):
+        """Save markov model clustering results in VCF format."""
+        with open(fn, "w"):
+            pass
+
+
+def load_model(fn):
+    pass
+
+
+def snp_read_dict(reads):
+    """Find the reads on a given snp position"""
+    sr_dict = {}
+    for read_id, read in enumerate(reads):
+        for index, snp in enumerate(read.snps):
+            snp_id = read.snps_id[index]
+            if snp_id not in sr_dict.keys():
+                sr_dict[snp_id] = [read_id]
+            else:
+                sr_dict[snp_id].append(read_id)
+    return sr_dict
+
+
+def reads_assignments(read_llhd):
+    m0_reads = []
+    m1_reads = []
+    #print((np.sum(pm_llhd[:, 1]), np.sum(pm_llhd[:, 0])))
+    for read_id, read in enumerate(read_llhd):
+        if read_llhd[read_id, 0] > read_llhd[read_id, 1]:
+            m0_reads.append(read_id)
+        elif read_llhd[read_id, 0] < read_llhd[read_id, 1]:
+            m1_reads.append(read_id)
+    return m0_reads, m1_reads
