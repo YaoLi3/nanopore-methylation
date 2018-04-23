@@ -44,7 +44,7 @@ def read_imprinted_data(fn):
 ############################
 class NanoporeRead:
     """
-    A nanopore sequencing read instance. NA12878 data.
+    A nanopore sequencing snp instance. NA12878 data.
     """
 
     def __init__(self, id, chrom, fastq_seq, start, end, rs=None):
@@ -66,7 +66,7 @@ class NanoporeRead:
         self.if_ir = False
         self.region = None
         self.gene_name = ""
-        self.segment_pos = [0, self.length]  # overlap segment, index on read
+        self.segment_pos = [0, self.length]  # overlap segment, snp_id on snp
         self.seg_ref_pos = [0, 0]  # segment pos on ref genome
 
         # Markov model attr
@@ -75,7 +75,7 @@ class NanoporeRead:
         self.model = None  # HMM model
 
     def if_in_imprinted_region(self, ip_regions):
-        """Decide if the read has at least one base overlapping with any imprinted region."""
+        """Decide if the snp has at least one base overlapping with any imprinted region."""
         for region in ip_regions:
             if self.chr == region.chr:
                 if region.start <= self.start <= region.end or region.start <= self.end <= region.end:
@@ -96,7 +96,7 @@ class NanoporeRead:
                 self.snps_id.append(snp_id)
 
     def get_raw_signals(self):
-        """Extract raw signals for the read"""
+        """Extract raw signals for the snp"""
         pass
 
     def get_bases(self):
@@ -124,10 +124,14 @@ class NanoporeRead:
 
     def set_raw_signal(self, rs):
         """
-        Set the raw signal for read.
+        Set the raw signal for snp.
         :param rs: (numpy array) raw signal
         """
         self.raw_signal = rs
+
+    def set_model(self, model):
+        """HMM model status, int, m1 or m2."""
+        self.model = model
 
     def __str__(self):
         return "{}:\t{}:{},{}".format(self.id, self.chr, self.start, self.end)
@@ -176,5 +180,10 @@ def get_overlapped_reads(reads, regions):
 
 
 def get_snps_for_reads(reads, snps):
+    """
+    :param reads: list of Reads
+    :param snps: list of SNPs
+    """
     for read in reads:
         read.detect_snps(snps)
+

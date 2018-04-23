@@ -37,20 +37,21 @@ if __name__ == "__main__":
     overlap_reads = load_objects("overlapped_reads.obj")
 
     """HMM, clustering SNPs into 2 possible haplotypes"""
-    model = Hmm(all_snps, ["P", "M"])
-    iter_num = 2
-    model.init_emission_matrix()
-
-    # Whole genome analysis
+    iter_num = 100
+    total_snps_assignments = np.zeros((len(all_snps), 2))
     for _ in range(iter_num):
-        sr_dict = snp_read_dict(all_reads)
-        pm_llhd = model.assign_reads(all_reads)  # read-model likelihood matrix, np array, shape: (50581, 2)
-        #print((np.sum(pm_llhd[:,1]),np.sum(pm_llhd[:,0])))
-        model.update(all_reads, sr_dict, pm_llhd, hard=True, pseudo_base=1e-4)
+        model_snps_assign = model_iterations(all_snps, all_reads, 10)
+        if total_snps_assignments.shape == model_snps_assign.shape:
+            total_snps_assignments += model_snps_assign
+        else:
+            raise ValueError("operands could not be broadcast together with different shapes.")
 
-    # Only overlapped reads analysis
-    for _ in range(iter_num):
-        sr_dict = snp_read_dict(overlap_reads)
-        pm_llhd = model.assign_reads(overlap_reads)  # read-model likelihood matrix, np array, shape: (50581, 2)
-        #print((np.sum(pm_llhd[:,1]),np.sum(pm_llhd[:,0])))  # sum up all the rows for each column/sum reads likelihoods for each model
-        model.update(overlap_reads, sr_dict, pm_llhd, hard=True, pseudo_base=1e-4)
+    with open("model_result.txt", "w") as f:
+        f.write("Chr19 whole genome data, Oxford Nanopore reads. Iterate 100 times.\n")
+        f.write("CHR\t\tPOS\t\tREF\t\tALT\t\tHMM\n")
+        for snp_id in range(total_snps_assignments.shape[0]):
+            m1p = total_snps_assignments[snp_id, 0] / 1000
+            m2p = total_snps_assignments[snp_id, 1] / 1000
+            #f.writelines("SNP assignments: model1:{}\tmodel2:{}\iter_num".format(m1p, m2p))
+            snp = all_snps[snp_id]
+            f.write("{}\t\t{}\t\t{}\t\t{}\t\t{}/{}\n".format(snp.chrom, snp.pos, snp.ref, snp.alt, m1p, m2p))

@@ -190,3 +190,21 @@ def load_pickle_file(filename):
 def load_objects(filename):
     """Return a list of objects"""
     return list(load_pickle_file(filename))
+
+
+def compare_lists(list1, list2):
+    """Compare to list1, changes happened in list2.
+    Measure the difference between 2 lists."""
+    add = []
+    miss = []
+    for ele in list1:
+        if ele not in list2:
+            miss.append(ele)
+    for ele in list2:
+        if ele not in list1:
+            add.append(ele)
+
+    por = len(miss)/len(list1)
+    print("{}% of 1st list elements are missing in the 2nd list.".format(por))
+    print("{} elements in 2nd list are additions to the 1st list.".format(len(add)))
+    return add, miss

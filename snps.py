@@ -33,7 +33,7 @@ class SNP:
 
         # Nanopore reads attr
         self.reads = []  # reads id mapped to this position
-        self.bases = []  # read bases mapped to this position
+        self.bases = []  # snp bases mapped to this position
 
         # Markov model attr
         self.model_llkh = [0, 0]  # likelihood for a SNP occurs in each model, respectively
@@ -64,6 +64,10 @@ class SNP:
             for conbo in TRANSVERSIONS:
                 if self.ref != self.alt and self.ref in conbo and self.alt in conbo:
                     self.type = "transversion"
+
+    def set_model(self, model):
+        """int, m1 or m2."""
+        self.model = model
 
     def __str__(self):
         return "{}: {}\tREF:{}, ALT:{}\tTYPE:{}. has {} nanopore reads.".format(self.chrom, self.pos, self.ref,
@@ -122,3 +126,4 @@ def get_positions(all_snps):
     for snp in all_snps:
         pos.append(snp.pos)
     return pos
+

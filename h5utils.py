@@ -13,10 +13,10 @@ import numpy as np
 def get_raw_segment(fast5_fn, start_base_idx, end_base_idx, basecall_group='Basecall_1D_000',
                     basecall_subgroup='BaseCalled_template'):
     """
-    Get the raw signal segment given the start and end index of the sequence.
+    Get the raw signal segment given the start and end snp_id of the sequence.
     fast5_fn: input fast5 file name.
-    start_base_idx: start index of the sequence (0-based)
-    end_base_idx: end index of the sequence (the index is included)
+    start_base_idx: start snp_id of the sequence (0-based)
+    end_base_idx: end snp_id of the sequence (the snp_id is included)
     basecall_group: group name to search for base information.
     basecall_subgroup: sub grou#!p name to search for base information.
     
