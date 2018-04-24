@@ -9,15 +9,23 @@
       <w>distrib</w>
       <w>emiss</w>
       <w>fastq</w>
+      <w>fltr</w>
+      <w>freebayes</w>
+      <w>frmt</w>
+      <w>gatk</w>
+      <w>indel</w>
       <w>indels</w>
       <w>llhd</w>
       <w>nano</w>
       <w>ndarray</w>
       <w>probs</w>
+      <w>qual</w>
       <w>scipy</w>
       <w>slsqp</w>
       <w>snps</w>
+      <w>strelka</w>
       <w>thrhld</w>
+      <w>transversion</w>
       <w>transversions</w>
     </words>
   </dictionary>

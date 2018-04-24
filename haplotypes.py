@@ -1,9 +1,8 @@
 import numpy as np
 import math
-#import pandas as pd
 
 
-class Hmm:
+class HMM:
     """
     A hidden markov model.
     Find the haplotype for SNPs based on Nanopore sequencing reads.
@@ -44,7 +43,7 @@ class Hmm:
         try:
             read_llhd = 0
             for index, snp in enumerate(read.snps):
-                t = self.get_emission()  # !, ? have to
+                t = self.get_emission()  # !, ? have to  TODO: check if
                 base_llhd = t[read.snps_id[index], state, self.observations.index(read.get_base(snp.pos))]
                 read_llhd += math.log(base_llhd)
             return read_llhd
@@ -58,7 +57,7 @@ class Hmm:
         Args:
             reads: list of reads.
         """
-        pm_llhd = np.zeros((len(reads), 2), dtype=float)
+        pm_llhd = np.zeros((len(reads), 2), dtype=float)  # what does pm stands for?
         self.read_assignments = np.zeros((len(reads), 2), dtype=float)  # assignments of reads
         for idx, read in enumerate(reads):
             pm_llhd[idx, 0] = self.read_log_likelihood(0, read)
@@ -97,7 +96,7 @@ class Hmm:
                         count[self.observations.index(read.get_base(snp.pos)), 1] += (pm_llhd[read_id, 1] * 1)
                 for state in range(2):
                     self.emission_probs[snp_id, state, :] = (count[:, state] / np.sum(count[:, state]))
-        except ValueError:
+        except ValueError:  # TODO: check for None Value in the input list
             pass
 
     def snps_assignments(self):
@@ -111,7 +110,7 @@ class Hmm:
             elif self.emission_probs[snp_id, 0, alt_base] < self.emission_probs[snp_id, 1, alt_base]:
                 self.snp_assignments[snp_id, 1] = 1
                 self.SNPs[snp_id].set_model(1)
-        return self.snp_assignments
+        return self.snp_assignments  # TODO: check if need this statement
 
     def get_states(self):
         """Return hidden states of the model."""
@@ -121,7 +120,7 @@ class Hmm:
         """Return the observations of the model."""
         return self.observations
 
-    def get_emission(self):  # reserve
+    def get_emission(self):
         """Return emission probability of
         observed elements from different states."""
         return self.emission_probs
@@ -134,11 +133,11 @@ class Hmm:
         """Set observations from states."""
         self.observations = ob
 
-    def get_snps(self):
+    def get_snps_a(self):
         """SNPs assignments matrix."""
         return self.snp_assignments
 
-    def get_reads(self):
+    def get_reads_a(self):
         return self.read_assignments
 
     def save_model(self, fn):
@@ -146,10 +145,12 @@ class Hmm:
         with open(fn, "w") as f:
             f.write("CHR\t\tPOS\t\tREF\t\tALT\t\tGT\t\tmodel\n")
             for snp in self.SNPs:
-                f.write("{}\t\t{}\t\t{}\t\t{}\t\t{}\t\t{}\n".format(snp.chrom, snp.pos, snp.ref, snp.alt, snp.gt, self.STATEs[snp.model]))
+                f.write("{}\t\t{}\t\t{}\t\t{}\t\t{}\t\t{}\n".format(snp.chr, snp.pos,
+                                                                    snp.ref, snp.alt,
+                                                                    snp.gt, self.STATEs[snp.model]))
 
 
-def snp_read_dict(reads):
+def snp_read_dict(reads):  # TODO: modify, pick two snps out for each read
     """Find the reads on a given snp position"""
     sr_dict = {}
     #for read_id, read in enumerate(reads):
@@ -161,10 +162,10 @@ def snp_read_dict(reads):
                 #sr_dict[snp_id].append(read_id)
 
     for read_id, read in enumerate(reads):
-        max = 0
+        max_len = 0
         for index, snp in enumerate(read.snps):
-            if len(snp.reads) > max:
-                max = len(snp.reads)
+            if len(snp.reads) > max_len:
+                max_len = len(snp.reads)
 
                 snp_id = read.snps_id[index]
                 snp_id2 = reads.snps_id[index-1]
@@ -180,7 +181,7 @@ def snp_read_dict(reads):
 def run_model(snps, reads, iter_num):
     """Set iteration times, run a model.
     Alternative: iterate until theta converge."""
-    model = Hmm(snps, ["P", "M"])
+    model = HMM(snps, ["Parental", "Maternal"])
     model.init_emission_matrix()
     total_assignments = np.zeros((len(snps), 2), dtype=float)  # total SNPs assignments, not reads
     t_r = np.zeros((len(reads), 2))
@@ -188,7 +189,7 @@ def run_model(snps, reads, iter_num):
         sr_dict = snp_read_dict(reads)
         pm_llhd = model.assign_reads(reads)
         total_assignments += model.snps_assignments()
-        t_r += model.get_reads()
+        t_r += model.get_reads_a()
         model.update(reads, sr_dict, pm_llhd, hard=True, pseudo_base=1e-4)
     return total_assignments, t_r
 
@@ -236,7 +237,7 @@ def models_iterations(iter_num, snps, reads, save_file=False):
                 m1p = total_snps_assignments[snp_id, 0] / t
                 m2p = total_snps_assignments[snp_id, 1] / t
                 snp = snps[snp_id]
-                f.write("{}\t\t{}\t\t{}\t\t{}\t\t{}/{}\n".format(snp.chrom, snp.pos, snp.ref, snp.alt, m1p, m2p))
+                f.write("{}\t\t{}\t\t{}\t\t{}\t\t{}/{}\n".format(snp.chr, snp.pos, snp.ref, snp.alt, m1p, m2p))
 
         with open("model_reads_result.txt", "w") as f:
             f.write("Chr19 whole genome data, Oxford Nanopore reads. Iterate {} times.\n".format(iter_num))
@@ -245,6 +246,7 @@ def models_iterations(iter_num, snps, reads, save_file=False):
                 m2p = total_reads_assignments[read_id, 1] / (10 * iter_num)
                 read = reads[read_id]
                 f.write("read {}:\t model1: {}\t model2: {}\n".format(read.id, m1p, m2p))
+
 
 """
 def golden_standard(ma, mb):

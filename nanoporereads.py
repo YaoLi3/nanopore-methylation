@@ -47,11 +47,11 @@ class NanoporeRead:
     A nanopore sequencing snp instance. NA12878 data.
     """
 
-    def __init__(self, id, chrom, fastq_seq, start, end, rs=None):
+    def __init__(self, sequencer_id, chrom, fastq_seq, start, end, rs=None):
         # Basic attr
-        self.id = id
+        self.id = sequencer_id
         self.chr = chrom
-        self.raw_signal = rs
+        self.raw_signal = rs  # TODO: use
         self.seq = fastq_seq
         self.start = int(start)
         self.end = int(end)
@@ -60,7 +60,7 @@ class NanoporeRead:
         # SNP attr
         self.snps = []
         self.snps_id = []
-        self.bases = []
+        self.bases = []  # NO NEED
         self.gt = ""
 
         # Imprinted regions attr
@@ -91,12 +91,13 @@ class NanoporeRead:
         Find snps in one READs.
         :param SNPs_data: (list) class SNPs objects
         """
-        for snp_id, snp in enumerate(SNPs_data):  # each SNPs instance, attr: chrom, id, pos, ref, alt, gt
+        for snp_id, snp in enumerate(SNPs_data):  # each SNPs instance, attr: chr, id, pos, ref, alt, gt
             if snp.chrom == self.chr and self.start <= snp.pos <= self.end:  # if position
                 self.snps.append(snp)
                 self.snps_id.append(snp_id)
 
     def detect_genotype(self):
+        """Based on SNPs located in the read, count the majority genotype."""
         A = 0; B = 0
         for snp in self.snps:
             base = self.get_base(snp.pos)
@@ -121,7 +122,7 @@ class NanoporeRead:
         """Extract raw signals for the snp"""
         pass
 
-    def get_bases(self):
+    def get_bases(self):  # NO NEED
         """
         Get bases on SNP positions on READs sequence.
         :return: list of string, bases, ATCG
@@ -141,8 +142,8 @@ class NanoporeRead:
             index = int(pos) - int(self.start)
             return self.seq[index]
         except IndexError:
-            pass
-            #raise IndexError("snp pos not right.")
+            #pass
+            raise IndexError("snp pos not right.")
 
     def set_raw_signal(self, rs):
         """
