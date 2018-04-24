@@ -174,7 +174,7 @@ def save_objects(filename, reads):
     """Save NanoporeRead objects into a file"""
     with open(filename, "wb") as f:
         for read in reads:
-            pickle.dump(read, f)
+            pickle.dump(read, f, protocol=2)
 
 
 def load_pickle_file(filename):

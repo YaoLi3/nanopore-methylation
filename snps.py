@@ -85,6 +85,18 @@ class SNP:
         return self.chrom != other.chrom or self.pos != other.pos or self.mut != other.mut
 
 
+def find_most_reads_snp(snp_list):
+    """Find the SNP that has the most number of reads mapped to its position.
+    Assume no "tie" situation."""
+    max_reads_num = 0
+    best_snp = None
+    for snp in snp_list:
+        if max_reads_num < len(snp.reads):
+            max_reads_num = len(snp.reads)
+            best_snp = snp
+    return best_snp
+
+
 def load_VCF(vcf_file):
     """
     Read a VCF file and return he data in it.
@@ -115,15 +127,3 @@ def load_VCF(vcf_file):
 def map_reads(snps, reads):
     """Find reads mapped to each SNP position."""
     [snp.detect_mapped_reads(reads) for snp in snps]
-
-
-def get_positions(all_snps):
-    """
-    Return SNP positions. hg38 ref genome.
-    :param all_snps: (list) a list of SNP instances
-    """
-    pos = []
-    for snp in all_snps:
-        pos.append(snp.pos)
-    return pos
-

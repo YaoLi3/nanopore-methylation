@@ -61,6 +61,7 @@ class NanoporeRead:
         self.snps = []
         self.snps_id = []
         self.bases = []
+        self.gt = ""
 
         # Imprinted regions attr
         self.if_ir = False
@@ -94,6 +95,27 @@ class NanoporeRead:
             if snp.chrom == self.chr and self.start <= snp.pos <= self.end:  # if position
                 self.snps.append(snp)
                 self.snps_id.append(snp_id)
+
+    def detect_genotype(self):
+        A = 0; B = 0
+        for snp in self.snps:
+            base = self.get_base(snp.pos)
+            if snp.gt == "1|0":
+                if base == snp.alt:
+                    A += 1
+                else:
+                    B += 1
+            elif snp.gt == "0|1":
+                if base == snp.alt:
+                    B += 1
+                else:
+                    A += 1
+        if A > B:
+            self.gt = "1|0"
+        elif A < B:
+            self.gt = "0|1"
+        else:
+            self.gt = "1|1"
 
     def get_raw_signals(self):
         """Extract raw signals for the snp"""
@@ -179,11 +201,18 @@ def get_overlapped_reads(reads, regions):
         return overlapped_reads
 
 
-def get_snps_for_reads(reads, snps):
+def reads_gt(reads, snps):
     """
     :param reads: list of Reads
     :param snps: list of SNPs
     """
+    m_a = []
+    m_b = []
     for read in reads:
         read.detect_snps(snps)
-
+        read.detect_genotype()
+        if read.gt == "1|0":
+            m_a.append(read)
+        elif read.gt == "0|1":
+            m_b.append(read)
+    return m_a, m_b
