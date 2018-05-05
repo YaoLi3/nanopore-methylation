@@ -4,6 +4,7 @@ __author__ = Yao LI
 __email__ = yao.li.binf@gmail.com
 __date__ = 26/03/2018
 """
+import pysam
 
 
 class SNP:
@@ -33,7 +34,6 @@ class SNP:
 
         # Nanopore reads attr
         self.reads = []  # reads snp_id mapped to this position
-        self.bases = []  # snp bases mapped to this position. NO NEED
 
         # Markov model attr
         self.model = None  # SNP assignment, M1 or M2
@@ -43,7 +43,6 @@ class SNP:
         for read in reads_data:
             if self.chr == read.chr and read.start <= self.pos <= read.end:
                 self.reads.append(read)
-                self.bases.append(read.get_base(self.pos))
 
     def detect_close_snps(self, snps):
         """Find SNPs that are close to this SNP on genome."""
@@ -113,7 +112,7 @@ def load_VCF(vcf_file):
                 a, b = gt.split("|")
                 if a != b:  # only use het snps
                     snp = SNP(chrom, snp_id, pos, ref, alt, gt)
-                    if not snp.type == "indel":  # and snp.reads != []:
+                    if not snp.type == "indel":
                         all_snps.append(snp)
         f.close()
         return all_snps
@@ -123,7 +122,15 @@ def load_VCF(vcf_file):
         raise IOError("This vcf file is not available.")
 
 
-def map_reads(snps, reads):
-    """Find reads mapped to each SNP position."""
-    [snp.detect_mapped_reads(reads) for snp in snps]
+def load_vcf_file(vcf_fn):  # TODO: convert file chr19.vcf into VCF format
+    vf = pysam.VariantFile(vcf_fn)
+    for snv in vf:
+        print(snv.attr)
 
+
+def map_reads(snps, reads):
+    """
+    Find reads mapped to each SNP position.
+    :return list of snps have read mapped to
+    """
+    return [snp.detect_mapped_reads(reads) for snp in snps]
