@@ -4,7 +4,7 @@ __author__ = Yao LI
 __email__ = yao.li.binf@gmail.com
 __date__ = 08/02/2018
 """
-
+import pysam
 
 #############################
 #  Human Imprinted Regions  #
@@ -47,7 +47,7 @@ class NanoporeRead:
     A nanopore sequencing snp instance. NA12878 data.
     """
 
-    def __init__(self, sequencer_id, chrom, fastq_seq, start, end, rs=None):
+    def __init__(self, sequencer_id, chrom, fastq_seq, start, end, quality, rs=None):
         # Basic attr
         self.id = sequencer_id
         self.chr = chrom
@@ -56,11 +56,11 @@ class NanoporeRead:
         self.start = int(start)
         self.end = int(end)
         self.length = len(self.seq)
+        self.quality = quality
 
         # SNP attr
         self.snps = []
         self.snps_id = []
-        self.bases = []  # NO NEED
         self.gt = ""
 
         # Imprinted regions attr
@@ -89,10 +89,10 @@ class NanoporeRead:
     def detect_snps(self, SNPs_data):
         """
         Find snps in one READs.
-        :param SNPs_data: (list) class SNPs objects
+        :param SNPs_data: (list) all SNPs data
         """
-        for snp_id, snp in enumerate(SNPs_data):  # each SNPs instance, attr: chr, id, pos, ref, alt, gt
-            if snp.chrom == self.chr and self.start <= snp.pos <= self.end:  # if position
+        for snp_id, snp in enumerate(SNPs_data):
+            if snp.chr == self.chr and self.start <= snp.pos < self.end:  # check
                 self.snps.append(snp)
                 self.snps_id.append(snp_id)
 
@@ -122,16 +122,6 @@ class NanoporeRead:
         """Extract raw signals for the snp"""
         pass
 
-    def get_bases(self):  # NO NEED
-        """
-        Get bases on SNP positions on READs sequence.
-        :return: list of string, bases, ATCG
-        """
-        for snp in self.snps:
-            index = int(snp.pos) - int(self.start)
-            self.bases.append(self.seq[index])
-        return self.bases
-
     def get_base(self, pos):
         """
         Extract sequence bases on given position.
@@ -139,11 +129,10 @@ class NanoporeRead:
         :return: (str) a bases on sequence
         """
         try:
-            index = int(pos) - int(self.start)
+            index = int(pos) - int(self.start) -1
             return self.seq[index]
         except IndexError:
-            #pass
-            raise IndexError("snp pos not right.")
+            print(self.start, self.end, pos)
 
     def set_raw_signal(self, rs):
         """
@@ -168,26 +157,17 @@ class NanoporeRead:
         return self.id != other.id or self.snps != other.snps or self.model != other.state
 
 
-def load_sam_file(samfile, chromosome):
-    """
-    Read data stored in a SAM file, convert it into NanoporeRead class objects.
-    :param chromosome: (int) chromosome number
-    :param samfile: (str) a sam file name
-    :return: (list) a list of NanoporeRead instances
-    """
-    aligned_data = []
-    file = open(samfile, "r")
-    for line in file:
-        if line.startswith("@"):  # ignore headers
-            pass
-        else:
-            line = line.strip().split()
-            end = int(line[3]) + len(line[9])
-            if line[2].startswith("chr{}".format(chromosome)):
-                read = NanoporeRead(line[0], line[2], line[9], line[3], end)
-                aligned_data.append(read)
-    file.close()
-    return aligned_data
+def load_sam_file(samfile, chr, snps):
+    reads = []
+    sf = pysam.AlignmentFile(samfile, "r")
+    for read in sf:
+        if read.reference_name == ("chr"+chr) and 10 < read.mapq and 10000 <= read.qlen:
+            r = NanoporeRead(read.query_name, read.reference_name, read.seq, read.pos, (read.pos + read.qlen), read.mapq)
+            r.detect_snps(snps)
+            if not r.snps == []:
+                reads.append(r)
+    sf.close()
+    return reads
 
 
 def get_overlapped_reads(reads, regions):
@@ -202,18 +182,10 @@ def get_overlapped_reads(reads, regions):
         return overlapped_reads
 
 
-def reads_gt(reads, snps):
+def locate_snps(reads, snps):
     """
     :param reads: list of Reads
     :param snps: list of SNPs
+    :return list of reads that have snps in
     """
-    m_a = []
-    m_b = []
-    for read in reads:
-        read.detect_snps(snps)
-        read.detect_genotype()
-        if read.gt == "1|0":
-            m_a.append(read)
-        elif read.gt == "0|1":
-            m_b.append(read)
-    return m_a, m_b
+    return [read.detect_snps(snps) for read in reads]
