@@ -6,13 +6,14 @@ __date__ = 08/02/2018
 """
 import pysam
 
+
 #############################
 #  Human Imprinted Regions  #
 #############################
 class ImprintedRegion:
     def __init__(self, name, chr, start, end, status=""):
         self.gene = name
-        self.chr = "chr"+chr
+        self.chr = "chr" + chr
         self.start = int(start)  # hg38
         self.end = int(end)
         self.status = status
@@ -47,7 +48,7 @@ class NanoporeRead:
     A nanopore sequencing snp instance. NA12878 data.
     """
 
-    def __init__(self, sequencer_id, chrom, fastq_seq, start, end, quality, rs=None):
+    def __init__(self, sequencer_id, chrom, start, end, quality, fastq_seq=None, rs=None):
         # Basic attr
         self.id = sequencer_id
         self.chr = chrom
@@ -55,13 +56,17 @@ class NanoporeRead:
         self.seq = fastq_seq
         self.start = int(start)
         self.end = int(end)
-        self.length = len(self.seq)
+        if fastq_seq is not None:  # Nonesense
+            self.length = len(self.seq)
+        else:
+            self.length = 0
         self.quality = quality
 
         # SNP attr
         self.snps = []
         self.snps_id = []
         self.gt = ""
+        self.bases = {}  # bases of read on SNPs loci
 
         # Imprinted regions attr
         self.if_ir = False
@@ -98,7 +103,8 @@ class NanoporeRead:
 
     def detect_genotype(self):
         """Based on SNPs located in the read, count the majority genotype."""
-        A = 0; B = 0
+        A = 0
+        B = 0
         for snp in self.snps:
             base = self.get_base(snp.pos)
             if snp.gt == "1|0":
@@ -129,10 +135,17 @@ class NanoporeRead:
         :return: (str) a bases on sequence
         """
         try:
-            index = int(pos) - int(self.start) -1
+            index = int(pos) - int(self.start) - 1
             return self.seq[index]
         except IndexError:
             print(self.start, self.end, pos)
+
+    def get_b(self, snp_idx):
+        return self.bases[snp_idx]
+
+    def set_bases(self, bases):
+        """List of bases"""
+        self.bases = bases
 
     def set_raw_signal(self, rs):
         """
@@ -161,8 +174,9 @@ def load_sam_file(samfile, chr, snps):
     reads = []
     sf = pysam.AlignmentFile(samfile, "r")
     for read in sf:
-        if read.reference_name == ("chr"+chr) and 10 < read.mapq and 10000 <= read.qlen:
-            r = NanoporeRead(read.query_name, read.reference_name, read.seq, read.pos, (read.pos + read.qlen), read.mapq)
+        if read.reference_name == ("chr" + chr) and 10 < read.mapq and 10000 <= read.qlen:
+            r = NanoporeRead(read.query_name, read.reference_name, read.pos, (read.pos + read.qlen), read.mapq,
+                             read.seq)
             r.detect_snps(snps)
             if not r.snps == []:
                 reads.append(r)
@@ -171,15 +185,15 @@ def load_sam_file(samfile, chr, snps):
 
 
 def get_overlapped_reads(reads, regions):
-        """
+    """
         For a given sam file, find out if there is any READs in the file
         is located in human genetic imprinted regions.
         """
-        overlapped_reads = []
-        for read in reads:
-            if read.if_in_imprinted_region(regions):
-                overlapped_reads.append(read)
-        return overlapped_reads
+    overlapped_reads = []
+    for read in reads:
+        if read.if_in_imprinted_region(regions):
+            overlapped_reads.append(read)
+    return overlapped_reads
 
 
 def locate_snps(reads, snps):
