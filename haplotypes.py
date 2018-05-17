@@ -1,5 +1,6 @@
 import numpy as np
 import math
+from snps import find_most_reads_snp
 
 
 class HMM:
@@ -72,10 +73,8 @@ class HMM:
             pm_llhd[idx, 1] = self.read_log_likelihood(1, read)
             if pm_llhd[idx, 0] > pm_llhd[idx, 1]:
                 self.read_assignments["m1"].append(idx)
-                read.set_model(0)  # TODO: not necessary
             elif pm_llhd[idx, 0] < pm_llhd[idx, 1]:
                 self.read_assignments["m2"].append(idx)
-                read.set_model(1)
         return pm_llhd
 
     def update(self, reads, sr_dict, pm_llhd, hard=True, pseudo_base=1e-1):
@@ -132,10 +131,8 @@ class HMM:
             alt_base = self.observations.index(self.SNPs[snp_id].alt)
             if self.emission_probs[snp_id, 0, alt_base] > self.emission_probs[snp_id, 1, alt_base]:
                 self.snp_assignments["m1"].append(snp_id)
-                #self.SNPs[snp_id].set_model(0)
             elif self.emission_probs[snp_id, 0, alt_base] < self.emission_probs[snp_id, 1, alt_base]:
                 self.snp_assignments["m2"].append(snp_id)
-                #self.SNPs[snp_id].set_model(1)
         return self.snp_assignments  # TODO: check if need this statement
 
     def get_states(self):
@@ -176,30 +173,23 @@ class HMM:
                                                                     snp.gt, self.STATEs[snp.model]))
 
 
-def snp_read_dict(reads):  # TODO: modify, pick two snps out for each read
+def snp_read_dict(reads, restrict=False):  # TODO: only choose one SNP from each read
     """Find the reads on a given snp position"""
     sr_dict = {}
     for read_id, read in enumerate(reads):
-        for index, snp in enumerate(read.snps):
-            snp_id = read.snps_id[index]
-            if snp_id not in sr_dict.keys():
-                sr_dict[snp_id] = [read_id]
+        if restrict:
+            snp = find_most_reads_snp(read.snps)
+            if snp is not None:
+                sr_dict[snp.id] = read_id
             else:
-                sr_dict[snp_id].append(read_id)
-
-    #for read_id, read in enumerate(reads):
-        #max_len = 0
-        #for index, snp in enumerate(read.snps):
-            #if len(snp.reads) > max_len:
-                #max_len = len(snp.reads)
-                #snp_id = read.snps_id[index]
-                #snp_id2 = reads.snps_id[index-1]
-                #if snp_id not in sr_dict.keys() or snp_id2 not in sr_dict.keys():
-                    #sr_dict[snp_id] = [read_id]
-                    #sr_dict[snp_id2] = [read_id]
-                #else:
-                    #sr_dict[snp_id].append(read_id)
-                    #sr_dict[snp_id2].append(read_id)
+                continue
+        else:
+            for index, snp in enumerate(read.snps):
+                snp_id = read.snps_id[index]
+                if snp_id not in sr_dict.keys():
+                    sr_dict[snp_id] = [read_id]
+                else:
+                    sr_dict[snp_id].append(read_id)
     return sr_dict
 
 
@@ -212,7 +202,7 @@ def run_model(snps, reads, iter_num, hard=True):
         sr_dict = snp_read_dict(reads)
         pm_llhd = model.assign_reads(reads)
         #print(model.emission_probs[9519,:])
-        #print((np.sum(pm_llhd[:,1]),np.sum(pm_llhd[:,0])))
+        print((np.sum(pm_llhd[:,1]),np.sum(pm_llhd[:,0])))
         model.update(reads, sr_dict, pm_llhd, hard, pseudo_base=1e-4)
     return model
 

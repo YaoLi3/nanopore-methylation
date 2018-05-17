@@ -35,9 +35,6 @@ class SNP:
         # Nanopore reads attr
         self.reads = []  # reads snp_id mapped to this position
 
-        # Markov model attr
-        self.model = None  # SNP assignment, M1 or M2
-
     def detect_mapped_reads(self, reads_data):
         """Find all the reads that map to this position."""
         for read in reads_data:
@@ -64,13 +61,9 @@ class SNP:
                 if self.ref != self.alt and self.ref in combo and self.alt in combo:
                     self.type = "transversion"
 
-    def set_model(self, model):
-        """int, m1 or m2."""
-        self.model = model
-
     def __str__(self):
-        return "{}: {}\tREF:{}, ALT:{}\tTYPE:{}. has {} nanopore reads.".format(self.chr, self.pos, self.ref,
-                                                                                self.alt, self.type, len(self.reads))
+        return "{}: {}\tREF:{}, ALT:{}\tTYPE:{}.".format(self.chr, self.pos,
+                                                         self.ref, self.alt, self.type)
 
     def __hash__(self):
         return hash((self.chr, self.pos))
@@ -83,17 +76,22 @@ class SNP:
         """Override the default Unequal behavior"""
         return self.chr != other.chr or self.pos != other.pos or self.mut != other.mut
 
+    def __lt__(self, other):
+        return len(self.reads) < len(other.reads)
 
-def find_most_reads_snp(snp_list):
+
+def find_most_reads_snp(snps_list):
     """Find the SNP that has the most number of reads mapped to its position.
     Assume no "tie" situation."""
     max_reads_num = 0
-    best_snp = None
-    for snp in snp_list:
-        if max_reads_num < len(snp.reads):
-            max_reads_num = len(snp.reads)
-            best_snp = snp
-    return best_snp
+    lens = []
+    #best_snp = None
+    #for snp in snps_list:
+        #if max_reads_num < len(snp.reads):
+            #max_reads_num = len(snp.reads)
+            #best_snp = snp
+    snps_list.sort()
+    return snps_list[0]
 
 
 def load_VCF(vcf_file):

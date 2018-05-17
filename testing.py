@@ -34,8 +34,12 @@ if __name__ == "__main__":
     # Simulation
     dummy_reads = load_objects("dummy_reads.obj")
     dummy_snps = load_objects("dummy_snps.obj")
+    #map_reads(all_snps, reads)
+    #for read in reads:
+        #for snp in read.snps:
+            #print(snp)
 
-    #m1 = run_model(dummy_snps, dummy_reads, 10, False)
+    m1 = run_model(dummy_snps, dummy_reads, 10, False)
     #m2 = run_model(dummy_snps, dummy_reads, 10, False)
     #compare_assignments(m1.get_snps(), m2.get_snps())
     #gold_standard(dummy_snps, m1.get_snps())

@@ -75,11 +75,6 @@ class NanoporeRead:
         self.segment_pos = [0, self.length]  # overlap segment, snp_id on snp
         self.seg_ref_pos = [0, 0]  # segment pos on ref genome
 
-        # Markov model attr
-        self.model1_probs = []
-        self.model2_probs = []
-        self.model = None  # HMM model
-
     def if_in_imprinted_region(self, ip_regions):
         """Decide if the snp has at least one base overlapping with any imprinted region."""
         for region in ip_regions:
@@ -154,20 +149,16 @@ class NanoporeRead:
         """
         self.raw_signal = rs
 
-    def set_model(self, model):
-        """HMM model status, int, m1 or m2."""
-        self.model = model
-
     def __str__(self):
         return "{}:\t{}:{},{}".format(self.id, self.chr, self.start, self.end)
 
     def __eq__(self, other):
         """Override the default Equals behavior"""
-        return self.id == other.id and self.model == other.state
+        return self.id == other.id
 
     def __ne__(self, other):
         """Override the default Unequal behavior"""
-        return self.id != other.id or self.snps != other.snps or self.model != other.state
+        return self.id != other.id or self.snps != other.snps or self.start != other.start
 
 
 def load_sam_file(samfile, chr, snps):
