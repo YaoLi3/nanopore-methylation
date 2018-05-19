@@ -60,16 +60,11 @@ SNP_POS = SNP_POS[sort_index]
 
 # Randomly assign SNPs
 SNP_OBJ = []
-m = 0
-p = 0
 for idx, pos in enumerate(SNP_POS):
-    if np.random.rand() >= .5:  # Maternal, 1|0, 89/200
-        m += 1
-        SNP_OBJ.append(SNP(19, idx, pos, PATERNAL_SNPS[idx], MATERNAL_SNPS[idx], "M:1"))
-    else:  # Parental, 0|1, 111/200
-        p += 1
-        SNP_OBJ.append(SNP(19, idx, pos, MATERNAL_SNPS[idx], PATERNAL_SNPS[idx], "P:0"))
-print("{} SNPs are Maternal SNPs and {} SNPs are Parental SNPs.".format(m, p))
+    if np.random.rand() >= .5:
+        SNP_OBJ.append(SNP(19, idx, pos, PATERNAL_SNPS[idx], MATERNAL_SNPS[idx], "1|0"))
+    else:
+        SNP_OBJ.append(SNP(19, idx, pos, MATERNAL_SNPS[idx], PATERNAL_SNPS[idx], "0|1"))
 
 # Packing
 PM_SNP = np.asarray(list(zip(PATERNAL_SNPS, MATERNAL_SNPS, SNP_POS)),
@@ -143,3 +138,11 @@ while True:
 
 save_objects("dummy_reads.obj", R_OBJ)
 save_objects("dummy_snps.obj", SNP_OBJ)
+
+#s = []
+#for snp in SNP_OBJ:
+    #for read in R_OBJ:
+        #if read.start <= snp.pos <= read.end:
+            #if snp not in s:
+                #s.append(snp)
+#print(len(s))  # 27

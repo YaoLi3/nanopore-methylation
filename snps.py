@@ -103,15 +103,18 @@ def load_VCF(vcf_file):
     try:
         f = open(vcf_file, "r")
         all_snps = []
+        n = 0
         for line in f:
             if line.startswith("chr"):
                 chrom, pos, snp_id, ref, alt, qual, fltr, \
                 info, frmt, gt = line.strip().split("\t")
                 a, b = gt.split("|")
                 if a != b:  # only use het snps
-                    snp = SNP(chrom, snp_id, pos, ref, alt, gt)
+                    snp = SNP(chrom, n, pos, ref, alt, gt)
                     if not snp.type == "indel":
                         all_snps.append(snp)
+                        n += 1
+        #print(n)  # 50746
         f.close()
         return all_snps
     except ValueError:
