@@ -83,15 +83,7 @@ class SNP:
 def find_most_reads_snp(snps_list):
     """Find the SNP that has the most number of reads mapped to its position.
     Assume no "tie" situation."""
-    max_reads_num = 0
-    lens = []
-    #best_snp = None
-    #for snp in snps_list:
-        #if max_reads_num < len(snp.reads):
-            #max_reads_num = len(snp.reads)
-            #best_snp = snp
-    snps_list.sort()
-    return snps_list[0]
+    return sorted(snps_list)[-1]
 
 
 def load_VCF(vcf_file):
@@ -114,7 +106,7 @@ def load_VCF(vcf_file):
                     if not snp.type == "indel":
                         all_snps.append(snp)
                         n += 1
-        #print(n)  # 50746
+        # print(n)  # 50746
         f.close()
         return all_snps
     except ValueError:
@@ -135,3 +127,22 @@ def map_reads(snps, reads):
     :return list of snps have read mapped to
     """
     return [snp.detect_mapped_reads(reads) for snp in snps]
+
+
+def assemble_haplotypes(snps):
+    """Input phased SNPs data. Assemble haplotype strings for two chromosomes."""
+    hA = ""
+    hB = ""
+    h = {"A": {}, "B": {}}
+    for snp in snps:
+        if snp.gt == "1|0":
+            hA += snp.alt
+            hB += snp.ref
+            h["A"][snp.pos] = (snp.alt, snp.ref)
+        elif snp.gt == "0|1":
+            hA += snp.ref
+            hB += snp.alt
+            h["B"][snp.pos] = (snp.ref, snp.alt)
+    print(hA)
+    print(hB)
+    return h

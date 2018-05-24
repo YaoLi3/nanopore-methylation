@@ -1,5 +1,7 @@
 import numpy as np
 import math
+import collections  # to sort dictionaries
+import random
 from snps import find_most_reads_snp
 
 
@@ -20,6 +22,7 @@ class HMM:
         # Assignment results
         self.snp_assignments = {"m1": [], "m2": []}
         self.read_assignments = {"m1": [], "m2": []}
+        self.alleles = {"m1": {}, "m2": {}}
 
     def init_emission_matrix(self):
         """
@@ -41,16 +44,17 @@ class HMM:
         :param read: (NanoporeRead) snp
         :param snps_id: list of snp_id of the snps of the snp
         :return sum (log value of likelihood of a read base observed on a SNP position)
+
+        base_llhd = t[read.snps_id[index], state, self.observations.index(read.get_base(snp.pos))]
         """
         read_llhd = 0
-
         for index, snp in enumerate(read.snps):
             try:
                 t = self.get_emission()
-                if simulation:
-                    base_llhd = t[snp.id, state, self.observations.index(read.bases[snp.id])]
-                else:
-                    base_llhd = t[read.snps_id[index], state, self.observations.index(read.get_base(snp.pos))]
+                #if simulation:
+                base_llhd = t[snp.id, state, self.observations.index(read.bases[snp.id])]
+                #else:
+                    #base_llhd = t[read.snps_id[index], state, self.observations.index(read.get_base(snp.pos))]
                 read_llhd += math.log(base_llhd)  # math domain error
                 return read_llhd
             except ValueError:
@@ -66,23 +70,27 @@ class HMM:
         """
         pm_llhd = np.zeros((len(reads), 2), dtype=float)
         self.read_assignments = {"m1": [], "m2": []}
-        self.snp_assignments = {"m1": [], "m2": []}
+        self.snp_assignments = {"m1": [], "m2": []}  # TODO: whaaaat
+        self.alleles = {"m1": {}, "m2": {}}
         for idx, read in enumerate(reads):
             pm_llhd[idx, 0] = self.read_log_likelihood(0, read, simulation)
             pm_llhd[idx, 1] = self.read_log_likelihood(1, read, simulation)
+            #print(type(self.read_log_likelihood(0, read, simulation)))  # is returning NoneType
             if pm_llhd[idx, 0] > pm_llhd[idx, 1]:
                 self.read_assignments["m1"].append(idx)
                 for snp_id in read.snps_id:
+                    self.alleles["m1"][self.SNPs[snp_id].pos] = read.bases[snp_id]  # TODO: test this statement
                     if snp_id not in self.snp_assignments["m1"]:
                         self.snp_assignments["m1"].append(snp_id)
             elif pm_llhd[idx, 0] < pm_llhd[idx, 1]:
                 self.read_assignments["m2"].append(idx)
                 for snp_id in read.snps_id:
+                    self.alleles["m2"][self.SNPs[snp_id].pos] = read.bases[snp_id]  # TODO: {snp pos: read base}
                     if snp_id not in self.snp_assignments["m2"]:
                         self.snp_assignments["m2"].append(snp_id)
         return pm_llhd
 
-    def update(self, reads, sr_dict, pm_llhd, hard=False, pseudo_base=1e-1, simulation=True):
+    def update(self, reads, sr_dict, pm_llhd, hard=False, pseudo_base=1e-1, simulation=True, restrict=False):
         """Update the probability matrix
         
         Args:
@@ -93,6 +101,8 @@ class HMM:
             pseudo_base(Float): Probability normalized by adding this pseudo_base, 
                 e.g. p[i] = (count[i]+pseudo_base)/(count[i]+4*pseudo_base).
             simulation(Boolean): if data is dummy data
+
+        count[self.observations.index(read.get_base(snp.pos)), pm_type] += 1
         """
         for snp_id in sr_dict.keys():
             snp = self.SNPs[snp_id]
@@ -101,27 +111,91 @@ class HMM:
             for read_id in sr_dict[snp_id]:
                 try:
                     read = reads[read_id]
-                    if simulation:  # simulation, update counts for read base on each SNP locus
-                        if hard:
-                            pm_type = np.argmax(pm_llhd[read_id, :])
-                            count[self.observations.index(read.bases[snp.id]), pm_type] += 1
-                        else:
-                            count[self.observations.index(read.bases[snp.id]), 0] += (pm_llhd[read_id, 0] * 1)  # add counts
-                            count[self.observations.index(read.bases[snp.id]), 1] += (pm_llhd[read_id, 1] * 1)
-                    else:  # real data
-                        if hard:
-                            pm_type = np.argmax(pm_llhd[read_id, :])
-                            count[self.observations.index(read.get_base(snp.pos)), pm_type] += 1
-                        else:
-                            count[self.observations.index(read.get_base(snp.pos)), 0] += (pm_llhd[read_id, 0] * 1)
-                            count[self.observations.index(read.get_base(snp.pos)), 1] += (pm_llhd[read_id, 1] * 1)
+                    #if simulation:  # simulation, update counts for read base on each SNP locus
+                    if hard:
+                        pm_type = np.argmax(pm_llhd[read_id, :])
+                        count[self.observations.index(read.bases[snp.id]), pm_type] += 1
+                    else:
+                        count[self.observations.index(read.bases[snp.id]), 0] += (pm_llhd[read_id, 0] * 1)  # add counts
+                        count[self.observations.index(read.bases[snp.id]), 1] += (pm_llhd[read_id, 1] * 1)
+                    #else:  # real data
+                        #if hard:
+                            #pm_type = np.argmax(pm_llhd[read_id, :])
+                            #count[self.observations.index(read.get_base(snp.pos)), pm_type] += 1
+                        #else:
+                            #count[self.observations.index(read.get_base(snp.pos)), 0] += (pm_llhd[read_id, 0] * 1)
+                            #count[self.observations.index(read.get_base(snp.pos)), 1] += (pm_llhd[read_id, 1] * 1)
                 except ValueError:
                     continue
                 for state in range(len(self.STATEs)):
-                    #print(count[:, state])
-                    #print(np.sum(count[:, state]))
                     self.emission_probs[snp_id, state, :] = (count[:, state] / np.sum(count[:, state]))  # normalize
-                    #print(self.emission_probs[snp_id, state, :])
+
+    def get_ordered_alleles(self):
+        """Return a sorted (by allele loci) collection.OrderedDict dictionary."""
+        m1a = collections.OrderedDict(sorted(self.alleles["m1"].items()))
+        m2a = collections.OrderedDict(sorted(self.alleles["m2"].items()))
+        return {"m1": m1a, "m2": m2a}
+
+    def get_haplotypes(self, align=False):
+        """Return two strings of haplotypes generated by two states."""
+        if align:
+            return self.read_results()
+        else:
+            h1 = ""; h2 = ""
+            m1 = collections.OrderedDict(sorted(self.alleles["m1"].items()))
+            m2 = collections.OrderedDict(sorted(self.alleles["m2"].items()))
+            for k, v in m1.items():
+                h1 += v
+            for k, v in m2.items():
+                h2 += v
+            return h1, h2
+
+    def get_snps_pos(self):
+        """Return two lists of SNPs loci."""
+        p1 = sorted(list(self.alleles["m1"].keys()))
+        p2 = sorted(list(self.alleles["m2"].keys()))
+        diff1 = []
+        diff2 = []
+        if len(p1) != len(p2):
+            print("The number of SNPs in two states are different.")
+            for snp in p1:
+                if snp not in p2:
+                    diff1.append(snp)
+            print("These SNP loci only appear in state 1: {}".format(diff1))
+            for snp in p2:
+                if snp not in p1:
+                    diff2.append(snp)
+            print("These SNP loci only appear in state 2: {}".format(diff2))
+        elif p1 == p2:
+            print("SNPs loci generated by two states are the same.")
+        print(p1)
+        print(p2)
+        return p1, p2
+
+    def read_results(self):
+        """
+        Compare haplotype strings between 2 states.
+        Find difference, identify different loci and bases.
+        scenario 1: the locus was covered only in one state, the other state did not emit base on this locus, reflect by -.
+        scenario 2: in both states, the locus was covered with different bases.
+        """
+        snps_loci = list(self.alleles["m1"].keys())
+        for locus in self.alleles["m2"].keys():
+            if locus not in snps_loci:
+                snps_loci.append(locus)
+        snps_loci.sort()
+        h1 = ""; h2 = ""; blank = "-"
+        for pos in snps_loci:
+            if pos in self.alleles["m1"]:
+                h1 += self.alleles["m1"][pos]
+            else:
+                h1 += blank
+        for pos in snps_loci:
+            if pos in self.alleles["m2"]:
+                h2 += self.alleles["m2"][pos]
+            else:
+                h2 += blank
+        return h1, h2
 
     def get_states(self):
         """Return hidden states of the model."""
@@ -197,47 +271,29 @@ def models_iterations(iter_num, snps, reads, hard=True):  # TODO: change the way
     for _ in range(iter_num):
         last_model = m0
         model = run_model(snps, reads, 10, hard)
-        compare_assignments(last_model.get_reads(), model.get_reads())
+        #compare_snps_assignments(last_model.get_reads(), model.get_reads())
 
 
-def compare_assignments(o_a, a):
+def compare_results(model1, model2):
     """
-    Compare SNPs assignments.
-    :param o_a: (numpy ndarray) old assignments
-    :param a: (numpy ndarray) current assignments
-    :return: lists, elements changes between models
+    Compare the haplotype generated by two models.
+    model1 h1 vs. model2 h1.
+    model1 h2 vs. model2 h2.
+    diff: (dict) {snp_pos: base} where difference was detected
     """
-    m1_to_m2 = []
-    m2_to_m1 = []
-    o_k = list(o_a.keys())
-    a_k = list(a.keys())
-    for i in o_a[o_k[0]]:
-        if i in a[a_k[1]] and i not in a[a_k[0]]:  # soft / hard clustering
-            m1_to_m2.append(i)
-    for j in o_a[o_k[1]]:
-        if j in a[a_k[0]] and j not in a[a_k[1]]:
-            m2_to_m1.append(j)
-    print("{} out of {} cluster 1 SNPs are now assigned to cluster 2.".format(len(m1_to_m2), len(o_a["m1"])))
-    print("{} out of {} cluster 1 SNPs are now assigned to cluster 2.".format(len(m2_to_m1), len(o_a["m2"])))
-    return m1_to_m2, m2_to_m1
+    h1_diff = {}
+    h2_diff = {}
 
 
-def gold_standard(snps, snps_assignments):  # TODO: how to use gold standard from a VCF file?
-    """Input VCF file data. Test data"""
-    m1_A = []; m1_B = []
-    for snp_id in snps_assignments["m1"]:
-        if snps[snp_id].gt == "1|0":
-            m1_A.append(snp_id)
-        elif snps[snp_id].gt == "0|1":
-            m1_B.append(snp_id)
-    m2_A = []; m2_B = []
-    for snp_id in snps_assignments["m2"]:
-        if snps[snp_id].gt == "1|0":
-            m2_A.append(snp_id)
-        elif snps[snp_id].gt == "0|1":
-            m2_B.append(snp_id)
+def gold_standard(snps):  # TODO: how to use gold standard from a VCF file? Two ways to do this.
+    # compare model dict with this gold standard dict
+    # only use SNPs loci that been covered by Nanopore read in the model
+    # no need to use all the SNPs from the VCF file
+    pass
 
-    m1_num = len(snps_assignments["m1"])
-    m2_num = len(snps_assignments["m2"])
-    print("Model1: {}/{} SNPs, alt base on chrA; {}/{} SNPs: chrB.".format(len(m1_A), m1_num, len(m1_B), m1_num))
-    print("Model2: {}/{} SNPs, alt base on chrA; {}/{} SNPs: chrB.".format(len(m2_A), m2_num, len(m2_B), m2_num))
+
+def choose_snps(read):
+    """Randomly select about half of the snps of a read
+    When updating the emission matrix.???????"""
+    size = len(read.snps) // 2
+    return np.random.choice(read.snps, size=size, replace=False)  # non-repetitive? no duplicates #random.sample(read.snps, size=size)

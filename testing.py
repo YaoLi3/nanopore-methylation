@@ -29,26 +29,18 @@ if __name__ == "__main__":
     all_snps = load_objects("data/snps.obj")
     reads = load_objects("data/reads.obj")
     #reads_ir = load_objects("data/reads_ir.obj")
+    map_reads(all_snps, reads)
+    save_objects("data/snps_reads.obj", all_snps)
+    print(find_most_reads_snp(all_snps))
 
     """HMM, clustering SNPs into 2 possible haplotypes"""
     # Simulation
-    dummy_reads = load_objects("dummy_reads.obj")  # 1000 reads
-    dummy_snps = load_objects("dummy_snps.obj")  # 200 snps
+    #dummy_reads = load_objects("data/dummy/dr1.obj")  # 1000 reads  # self.bases, snps_id work
+    #dummy_snps = load_objects("data/dummy/ds1.obj")  # 200 snps
 
-    m1 = run_model(dummy_snps, dummy_reads, 10, simulation=True)
-    #print(len(m1.get_snps()["m1"]))
-    #print(len(m1.get_snps()["m2"]))
-    #m2 = run_model(dummy_snps, dummy_reads, 10, simulation=True)
-    #print(len(m2.get_snps()["m1"]))
-    #print(len(m2.get_snps()["m2"]))
-    #compare_assignments(m1.get_snps(), m2.get_snps())  # no changes
-    gold_standard(dummy_snps, m1.get_snps())
+    #m1 = run_model(dummy_snps, dummy_reads, 10, simulation=True)
 
-    m3 = run_model(all_snps, reads, 10, simulation=False)
-    #print(len(m3.snp_assignments["m1"]))
-    #print(len(m3.snp_assignments["m2"]))
-    m4 = run_model(all_snps, reads, 10, simulation=False)
-    #print(len(m4.snp_assignments["m1"]))
-    #print(len(m4.snp_assignments["m2"]))
-    compare_assignments(m3.get_snps(), m4.get_snps())
-    #gold_standard(all_snps, m3.get_snps())
+    #model = run_model(all_snps, reads, 10, simulation=False)
+    #h1, h2 = model.read_results()
+    #print(h1)
+    #print(h2)

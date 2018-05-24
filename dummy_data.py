@@ -58,7 +58,7 @@ PATERNAL_SNPS = PATERNAL_SNPS[sort_index]
 MATERNAL_SNPS = MATERNAL_SNPS[sort_index]
 SNP_POS = SNP_POS[sort_index]
 
-# Randomly assign SNPs
+# Randomly decide (ref-alt)
 SNP_OBJ = []
 for idx, pos in enumerate(SNP_POS):
     if np.random.rand() >= .5:
@@ -70,10 +70,8 @@ for idx, pos in enumerate(SNP_POS):
 PM_SNP = np.asarray(list(zip(PATERNAL_SNPS, MATERNAL_SNPS, SNP_POS)),
                     dtype=[('paternal', 'U1'), ('maternal', 'U1'), ('pos', 'i4')])
 
+
 ### Read Simulation
-READS = []
-
-
 def generate_uniform_transfer_matrix(error_rate):
     transfer_matrix = np.zeros([4, 4])
     for i in range(4):
@@ -102,6 +100,7 @@ error_matrix = generate_uniform_transfer_matrix(ERROR_RATE)
 
 ID = 0
 R_OBJ = []
+READS = []
 
 while True:
     READ_START = int(START_FUNC(low=READ_REGION[0], high=READ_REGION[1]))
@@ -117,15 +116,14 @@ while True:
         snp_list = PM_SNP[snp_index]['maternal']
     t_list = substitute_base(snp_list, error_matrix)
     packing = (t_list, snp_index)  # snp_idx: tuple
-    #print(type(t_list))
-    #print(len(snp_index[0]))
-    #print(packing)
     READS.append(packing)
 
+    # snp_id: read base. dict
     BASES = {}
     for index, b in enumerate(t_list):
         BASES[snp_index[0][index]] = b
 
+    print(BASES)
     # read objects
     r_obj = NanoporeRead(ID, 19, READ_START, (READ_LEN+READ_START), 60)
     r_obj.set_bases(BASES)
@@ -136,8 +134,8 @@ while True:
     if len(READS) >= READS_NUM:
         break
 
-save_objects("dummy_reads.obj", R_OBJ)
-save_objects("dummy_snps.obj", SNP_OBJ)
+save_objects("data/dr1.obj", R_OBJ)
+save_objects("data/ds1.obj", SNP_OBJ)
 
 #s = []
 #for snp in SNP_OBJ:

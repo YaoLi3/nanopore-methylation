@@ -52,27 +52,25 @@ class NanoporeRead:
         # Basic attr
         self.id = sequencer_id
         self.chr = chrom
-        self.raw_signal = rs  # TODO: use
-        self.seq = fastq_seq
         self.start = int(start)
         self.end = int(end)
-        if fastq_seq is not None:  # Nonesense
-            self.length = len(self.seq)
-        else:
-            self.length = 0
-        self.quality = quality
+        self.quality = quality  # mapping quality
+
+        self.seq = fastq_seq
+        self.raw_signal = rs
 
         # SNP attr
         self.snps = []
         self.snps_id = []
+        self.bases = {}  # bases of read on SNPs loci. a mini haplotype  # bases, not base. {snp_id: read base}
         self.gt = ""
-        self.bases = {}  # bases of read on SNPs loci
 
         # Imprinted regions attr
         self.if_ir = False
         self.region = None
         self.gene_name = ""
-        self.segment_pos = [0, self.length]  # overlap segment, snp_id on snp
+        if self.seq is not None:
+            self.segment_pos = [0, len(self.seq)]  # overlap segment, snp_id on snp
         self.seg_ref_pos = [0, 0]  # segment pos on ref genome
 
     def if_in_imprinted_region(self, ip_regions):
@@ -94,34 +92,9 @@ class NanoporeRead:
         for snp_id, snp in enumerate(SNPs_data):
             if snp.chr == self.chr and self.start <= snp.pos < self.end:  # check
                 self.snps.append(snp)
-                self.snps_id.append(snp_id)
-
-    def detect_genotype(self):
-        """Based on SNPs located in the read, count the majority genotype."""
-        A = 0
-        B = 0
-        for snp in self.snps:
-            base = self.get_base(snp.pos)
-            if snp.gt == "1|0":
-                if base == snp.alt:
-                    A += 1
-                else:
-                    B += 1
-            elif snp.gt == "0|1":
-                if base == snp.alt:
-                    B += 1
-                else:
-                    A += 1
-        if A > B:
-            self.gt = "1|0"
-        elif A < B:
-            self.gt = "0|1"
-        else:
-            self.gt = "1|1"
-
-    def get_raw_signals(self):
-        """Extract raw signals for the snp"""
-        pass
+                self.snps_id.append(snp_id)  # not necessary
+                if self.seq is not None:
+                    self.bases[snp_id] = self.get_base(snp.pos)
 
     def get_base(self, pos):
         """
@@ -135,7 +108,7 @@ class NanoporeRead:
         except IndexError:
             print(self.start, self.end, pos)
 
-    def get_b(self, snp_idx):
+    def get_dict_base(self, snp_idx):
         return self.bases[snp_idx]
 
     def set_bases(self, bases):
@@ -148,6 +121,10 @@ class NanoporeRead:
         :param rs: (numpy array) raw signal
         """
         self.raw_signal = rs
+
+    def set_seq(self, fastq):
+        """Set sequence for the read."""
+        self.seq = fastq
 
     def __str__(self):
         return "{}:\t{}:{},{}".format(self.id, self.chr, self.start, self.end)
