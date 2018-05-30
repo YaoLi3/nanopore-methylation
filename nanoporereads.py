@@ -144,7 +144,7 @@ def load_sam_file(samfile, chr, snps):
     for read in sf:
         if read.reference_name == ("chr" + chr) and 10 < read.mapq and 10000 <= read.qlen:
             r = NanoporeRead(read.query_name, read.reference_name, read.pos, (read.pos + read.qlen), read.mapq,
-                             read.seq)
+                             fastq_seq=read.seq)
             r.detect_snps(snps)
             if not r.snps == []:
                 reads.append(r)
