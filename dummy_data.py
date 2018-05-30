@@ -82,7 +82,7 @@ def generate_uniform_transfer_matrix(error_rate):
 
 def substitute_base(base_list, transfer_matrix):
     # transfer_matrix is a 4x4 matrix which each element
-    # a[i][j] is the probability of i base transfer to j base.
+    # a[_][j] is the probability of _ base transfer to j base.
     bases = ['A', 'G', 'C', 'T']
     transfer_list = []
     for base in base_list:
