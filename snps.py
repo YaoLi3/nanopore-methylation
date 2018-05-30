@@ -95,7 +95,7 @@ def load_VCF(vcf_file):
     try:
         f = open(vcf_file, "r")
         all_snps = []
-        n = 0
+        n = 0  # snp_id, = SNPs.index(snp)
         for line in f:
             if line.startswith("chr"):
                 chrom, pos, snp_id, ref, alt, qual, fltr, \
@@ -131,18 +131,12 @@ def map_reads(snps, reads):
 
 def assemble_haplotypes(snps):
     """Input phased SNPs data. Assemble haplotype strings for two chromosomes."""
-    hA = ""
-    hB = ""
     h = {"A": {}, "B": {}}
     for snp in snps:
         if snp.gt == "1|0":
-            hA += snp.alt
-            hB += snp.ref
-            h["A"][snp.pos] = (snp.alt, snp.ref)
+            h["A"][snp.pos] = snp.alt
+            h["B"][snp.pos] = snp.ref
         elif snp.gt == "0|1":
-            hA += snp.ref
-            hB += snp.alt
-            h["B"][snp.pos] = (snp.ref, snp.alt)
-    print(hA)
-    print(hB)
+            h["A"][snp.pos] = snp.ref
+            h["B"][snp.pos] = snp.alt
     return h
