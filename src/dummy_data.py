@@ -1,6 +1,6 @@
 # Author: Haotian Teng
 import numpy as np
-from nanoporereads import *
+from src.nanoporereads import *
 from snps import *
 from handlefiles import save_objects
 

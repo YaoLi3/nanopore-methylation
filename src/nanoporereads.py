@@ -5,6 +5,8 @@ __email__ = yao.li.binf@gmail.com
 __date__ = 08/02/2018
 """
 import pysam
+from src.handlefiles import save_objects
+from src.snps import load_VCF
 
 
 #############################
@@ -171,3 +173,14 @@ def locate_snps(reads, snps):
     :return list of reads that have snps in
     """
     return [read.detect_snps(snps) for read in reads]
+
+
+if __name__ == "__main__":
+    imprinted_regions = read_imprinted_data("../data/ip_gene_pos.txt")
+    all_snps = load_VCF("../data/chr19.vcf")  # 50745 SNPs
+    reads = load_sam_file("../data/chr19_merged.sam", "19", all_snps)  # 8969 filtered reads out of 50581 total rs
+    # Find reads overlapping with any human imprinted region
+    o = get_overlapped_reads(reads, imprinted_regions)  # 86
+    save_objects("../data/snps.obj", all_snps)
+    save_objects("../data/reads.obj", reads)
+    save_objects("../data/reads_ir.obj", o)

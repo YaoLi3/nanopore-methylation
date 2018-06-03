@@ -1,6 +1,9 @@
 import numpy as np
 import math
 import collections  # to sort dictionaries
+import logging
+from src.images import save_scatter_plot_fig
+from src.handlefiles import save_objects, load_objects
 
 
 class HMM:
@@ -44,12 +47,13 @@ class HMM:
         """
         read_llhd = 0
         for index, snp in enumerate(read.snps):
-            try:
-                t = self.get_emission()
-                base_llhd = t[snp.id, state, self.observations.index(read.bases[snp.id])]
-                read_llhd += math.log(base_llhd)  # math domain error, base_llhd = -8.84548072603065
-            except ValueError:
-                continue
+            t = self.get_emission()
+            base_llhd = t[snp.id, state, self.observations.index(read.bases[snp.id])]
+            if base_llhd < 0:
+                #print(snp.id, state, self.observations.index(read.bases[snp.id]))
+                logging.error("base emission prob is negative.")
+                #print(t[snp.id, state, :])
+            read_llhd += math.log(base_llhd)  # math domain error, base_llhd = -8.84548072603065
         return read_llhd
 
     def assign_reads(self, reads):
@@ -104,28 +108,29 @@ class HMM:
             hard (Boolean): If update in hard manner.
             pseudo_base(Float): Probability normalized by adding this pseudo_base, 
                 e.diffs. p[_] = (count[_]+pseudo_base)/(count[_]+4*pseudo_base).
-            restrict (Boolean): if selectively use read snps
 
         hard: count[self.observations.index(read.get_base(snp.pos)), pm_type] += 1
         fuzzy: count[self.observations.index(read.get_base(snp.pos)), 0] += (pm_llhd[read_id, 0] * 1)
         """
         for snp_id in sr_dict.keys():
-            #snp = self.SNPs[snp_id]
             count = np.zeros((len(self.observations), 2))
             count[:] = pseudo_base
             for read_id in sr_dict[snp_id]:
-                try:
-                    read = reads[read_id]
-                    if hard:
-                        pm_type = np.argmax(pm_llhd[read_id, :])
-                        count[self.observations.index(read.bases[snp_id]), pm_type] += 1  # snp_id or snp.id, same
-                    else:
-                        count[self.observations.index(read.bases[snp_id]), 0] += (pm_llhd[read_id, 0] * 1)
-                        count[self.observations.index(read.bases[snp_id]), 1] += (pm_llhd[read_id, 1] * 1)
-                except ValueError:  # TODO: no value error should occur
-                    continue
-                for state in range(len(self.STATEs)):
-                    self.emission_probs[snp_id, state, :] = (count[:, state] / np.sum(count[:, state]))  # normalize
+                read = reads[read_id]
+                if hard:
+                    pm_type = np.argmax(pm_llhd[read_id, :])
+                    count[self.observations.index(read.bases[snp_id]), pm_type] += 1  # snp_id or snp.id, same
+                else:
+                    count[self.observations.index(read.bases[snp_id]), 0] += (pm_llhd[read_id, 0] * 1)
+                    count[self.observations.index(read.bases[snp_id]), 1] += (pm_llhd[read_id, 1] * 1)
+                    #logging.error("pm_llhd[read_id, 0] * 1 is negative.")
+            for state in range(len(self.STATEs)):
+                #print(count[:, state])
+                #print(np.sum(count[:, state]))
+                avg = (count[:, state] / np.sum(count[:, state]))
+                self.emission_probs[snp_id, state, :] = avg #(count[:, state] / np.sum(count[:, state]))
+                for i in avg:
+                    assert 0 < i < 1
 
     def alter_update(self, reads, sr_dict, pm_llhd, pseudo_base=1e-1):
         """Only consider a part of SNPs site in a read.
@@ -136,14 +141,18 @@ class HMM:
             count = np.zeros((len(self.observations), 2))
             count[:] = pseudo_base
             for read_id in sr_dict[snp_id]:
-                try:
-                    read = reads[read_id]
-                    count[self.observations.index(read.bases[snp.id]), 0] += (pm_llhd[read_id, 0] * 1)  # add counts
-                    count[self.observations.index(read.bases[snp.id]), 1] += (pm_llhd[read_id, 1] * 1)
-                except ValueError:
-                    continue
+                read = reads[read_id]
+                count[self.observations.index(read.bases[snp.id]), 0] += (pm_llhd[read_id, 0] * 1)
+                count[self.observations.index(read.bases[snp.id]), 1] += (pm_llhd[read_id, 1] * 1)
             for state in range(len(self.STATEs)):
-                self.emission_probs[snp_id, state, :] = (count[:, state] / np.sum(count[:, state]))  # normalize
+                avg = (count[:, state] / np.sum(count[:, state]))
+                self.emission_probs[snp_id, state, :] = avg
+                for i in avg:
+                    assert 0 < i < 1
+
+    ##########################
+    def minimize(self):
+        pass
 
     def get_alleles(self):
         """Return a dict."""
@@ -258,10 +267,11 @@ def run_model(snps, reads, iter_num, hard=False, updateAll=True):
             model.update(reads, sr_dict, pm_llhd, hard=hard)
         else:
             model.alter_update(reads, sr_dict, pm_llhd)
+    #save_scatter_plot_fig(s[:, 0], "model0.png")
     return model
 
 
-def models_iterations(iter_times, snps, reads, hard=False):
+def models_iterations(iter_times, snps, reads, hard=False, updateAll=False):
     """Generate a markov model multiple times."""
     model = run_model(snps, reads, 10, hard=hard)
     for _ in range(iter_times):
@@ -347,3 +357,15 @@ def gold_standard(g_dict, m_dict):
                 if m_dict["m2"][snp_pos] != g_dict[key][snp_pos]:
                     diff[key]["m2"][snp_pos] = (m_dict["m2"][snp_pos], g_dict[key][snp_pos])
     return diff
+
+
+if __name__ == "__main__":
+    all_snps = load_objects("../data/snps.obj")
+    reads = load_objects("../data/reads.obj")
+    #m = run_model(all_snps, reads, 10)
+    model = HMM(all_snps, ["P", "M"])
+    model.init_emission_matrix()
+    sr_dict = model.snp_read_dict(reads)
+    pm_llhd = model.assign_reads(reads)
+    model.update(reads, sr_dict, pm_llhd)
+    #print(model.emission_probs.shape)  # (50746, 2, 4)

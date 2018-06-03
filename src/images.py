@@ -1,8 +1,6 @@
 import ggplot as gp
-
 from matplotlib import pyplot as plt
 from matplotlib import style
-
 from dna_features_viewer import GraphicFeature, GraphicRecord
 
 
