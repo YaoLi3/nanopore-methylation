@@ -121,8 +121,8 @@ class HMM:
                     pm_type = np.argmax(pm_llhd[read_id, :])
                     count[self.observations.index(read.bases[snp_id]), pm_type] += 1  # snp_id or snp.id, same
                 else:
-                    count[self.observations.index(read.bases[snp_id]), 0] += (pm_llhd[read_id, 0] * 1)
-                    count[self.observations.index(read.bases[snp_id]), 1] += (pm_llhd[read_id, 1] * 1)
+                    count[self.observations.index(read.bases[snp_id]), 0] += np.exp(pm_llhd[read_id, 0])
+                    count[self.observations.index(read.bases[snp_id]), 1] += np.exp(pm_llhd[read_id, 1])
                     #logging.error("pm_llhd[read_id, 0] * 1 is negative.")
             for state in range(len(self.STATEs)):
                 #print(count[:, state])
@@ -142,8 +142,8 @@ class HMM:
             count[:] = pseudo_base
             for read_id in sr_dict[snp_id]:
                 read = reads[read_id]
-                count[self.observations.index(read.bases[snp.id]), 0] += (pm_llhd[read_id, 0] * 1)
-                count[self.observations.index(read.bases[snp.id]), 1] += (pm_llhd[read_id, 1] * 1)
+                count[self.observations.index(read.bases[snp.id]), 0] += np.exp(pm_llhd[read_id, 0])
+                count[self.observations.index(read.bases[snp.id]), 1] += np.exp(pm_llhd[read_id, 1])
             for state in range(len(self.STATEs)):
                 avg = (count[:, state] / np.sum(count[:, state]))
                 self.emission_probs[snp_id, state, :] = avg
