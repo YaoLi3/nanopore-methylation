@@ -1,4 +1,3 @@
-# Author: Haotian Teng
 import numpy as np
 from src.nanoporereads import *
 from src.snps import *
@@ -137,10 +136,10 @@ while True:
 save_objects("data/dr1.obj", R_OBJ)
 save_objects("data/ds1.obj", SNP_OBJ)
 
-#s = []
-#for snp in SNP_OBJ:
-    #for read in R_OBJ:
-        #if read.start <= snp.pos <= read.end:
-            #if snp not in s:
-                #s.append(snp)
-#print(len(s))  # 27
+s = []
+for snp in SNP_OBJ:
+    for read in R_OBJ:
+        if read.start <= snp.pos <= read.end:
+            if snp not in s:
+                s.append(snp)
+print(len(s))  # 27
