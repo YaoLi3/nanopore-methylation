@@ -6,9 +6,7 @@ __date__ = 07/02/2018
 """
 import os
 import numpy as np
-from handlefiles import get_id
-from handlefiles import search_fastq
-from h5utils import get_raw_segment
+from src.handlefiles import get_id, get_raw_segment, search_fastq
 
 
 def get_raw_dirc(directory, savepath, ir_pos, fastqpath="/shares/coin/yao.li/data/fastq/", basecall_group='Basecall_1D_001'):
@@ -44,3 +42,7 @@ def find_haplotype(raw_signals, haplotypes):
     for signal_id in raw_signals:
         h1.append(raw_signals[signal_id])
     return h1, h2
+
+
+if __name__ == "__main__":
+    raw_signals = get_raw_segment("fast5/", "../data/raw_signals/", ir_pos)  # I probably don't have ir_pos any more, damn it
