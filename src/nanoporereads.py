@@ -20,7 +20,7 @@ class ImprintedRegion:
         self.end = int(end)
         self.status = status
 
-        self.reads = []  # reads have overlapped with this imprinted region
+        self.reads = []  # READS have overlapped with this imprinted region
 
     def __str__(self):
         return "Gene:{}, chr:{}, {}:{}".format(self.gene, self.chr, self.start, self.end)
@@ -64,7 +64,7 @@ class NanoporeRead:
         # SNP attr
         self.snps = []
         self.snps_id = []
-        self.bases = {}  # bases of read on SNPs loci. a mini haplotype  # bases, not base. {snp_id: read base}
+        self.bases = {}  # bases of read on SNPS loci. a mini haplotype  # bases, not base. {snp_id: read base}
         self.gt = ""
 
         # Imprinted regions attr
@@ -89,7 +89,7 @@ class NanoporeRead:
     def detect_snps(self, SNPs_data):
         """
         Find snps in one READs.
-        :param SNPs_data: (list) all SNPs data
+        :param SNPs_data: (list) all SNPS data
         """
         for snp_id, snp in enumerate(SNPs_data):
             if snp.chr == self.chr and self.start <= snp.pos < self.end:  # check
@@ -169,18 +169,18 @@ def get_overlapped_reads(reads, regions):
 def locate_snps(reads, snps):
     """
     :param reads: list of Reads
-    :param snps: list of SNPs
-    :return list of reads that have snps in
+    :param snps: list of SNPS
+    :return list of READS that have snps in
     """
     return [read.detect_snps(snps) for read in reads]
 
 
 if __name__ == "__main__":
     imprinted_regions = read_imprinted_data("../data/ip_gene_pos.txt")
-    all_snps = load_VCF("../data/chr19.vcf")  # 50745 SNPs
-    reads = load_sam_file("../data/chr19_merged.sam", "19", all_snps)  # 8969 filtered reads out of 50581 total rs
-    # Find reads overlapping with any human imprinted region
+    all_snps = load_VCF("../data/chr13.vcf")  # 50745 SNPS
+    reads = load_sam_file("../data/chr13.sam", "13", all_snps)  # 8969 filtered READS out of 50581 total rs
+    # Find READS overlapping with any human imprinted region
     o = get_overlapped_reads(reads, imprinted_regions)  # 86
-    save_objects("../data/snps.obj", all_snps)
-    save_objects("../data/reads.obj", reads)
-    save_objects("../data/reads_ir.obj", o)
+    save_objects("../data/chr13_snps.obj", all_snps)
+    save_objects("../data/chr13_reads.obj", reads)
+    save_objects("../data/chr13_reads_ir.obj", o)

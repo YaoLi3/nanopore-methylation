@@ -138,7 +138,7 @@ def read_find_ip_results(fn):
 def get_positions(file_n):
     """
     :param file_n: (string) file name
-    :return: (dict) key = reads id, value = (start, end) genome positions of the READs
+    :return: (dict) key = READS id, value = (start, end) genome positions of the READs
     """
     poses = {}
     f = open(file_n, "r")
@@ -153,8 +153,8 @@ def get_positions(file_n):
 def find_snps_in_read(read_f, snp_data):
     """
     :param read_f: (string) find_imprinted_result file name
-    :param snp_data: (list) [(SNPs genome position, a status, b status)]
-    :return: (dict) data: key = id, value = info. key = SNPs, seq.
+    :param snp_data: (list) [(SNPS genome position, a status, b status)]
+    :return: (dict) data: key = id, value = info. key = SNPS, seq.
     """
     data = {}
     ip_reads_regions = get_positions(read_f)

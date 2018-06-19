@@ -2,14 +2,14 @@ import numpy as np
 import math
 import collections  # to sort dictionaries
 import logging
-from src.images import save_scatter_plot_fig
 from src.handlefiles import save_objects, load_objects
-
+from src.images import plot_sr_dict
+import matplotlib.pyplot as plt
 
 class HMM:
     """
     A hidden markov model.
-    Find the haplotype for SNPs based on Nanopore sequencing reads.
+    Find the haplotype for SNPS based on Nanopore sequencing READS.
     """
 
     def __init__(self, snp_data, states, ob=None):
@@ -50,18 +50,16 @@ class HMM:
             t = self.get_emission()
             base_llhd = t[snp.id, state, self.observations.index(read.bases[snp.id])]
             if base_llhd < 0:
-                #print(snp.id, state, self.observations.index(read.bases[snp.id]))
                 logging.error("base emission prob is negative.")
-                #print(t[snp.id, state, :])
             read_llhd += math.log(base_llhd)  # math domain error, base_llhd = -8.84548072603065
         return read_llhd
 
     def assign_reads(self, reads):
-        """Calculate the parental-maternal likelihood of the reads.
+        """Calculate the parental-maternal likelihood of the READS.
         Expectation step in EM algorithm.
-        
+        SR_DICT
         Args:
-            reads: list of reads.
+            reads: list of READS.
         """
         pm_llhd = np.zeros((len(reads), 2), dtype=float)
         self.read_assignments = {"m1": [], "m2": []}
@@ -72,37 +70,30 @@ class HMM:
             if pm_llhd[idx, 0] > pm_llhd[idx, 1]:
                 self.read_assignments["m1"].append(idx)
                 for snp_id in read.snps_id:
-                    self.alleles["m1"][self.SNPs[snp_id].pos] = read.bases[snp_id]
+                    if snp_id in self.alleles["m1"]:
+                        self.alleles["m1"][snp_id].append(read.bases[snp_id])
+                    else:
+                        self.alleles["m1"][snp_id] = [read.bases[snp_id]]
             elif pm_llhd[idx, 0] < pm_llhd[idx, 1]:
                 self.read_assignments["m2"].append(idx)
                 for snp_id in read.snps_id:
-                    self.alleles["m2"][self.SNPs[snp_id].pos] = read.bases[snp_id]
+                    if snp_id in self.alleles["m2"]:
+                        self.alleles["m2"][snp_id].append(read.bases[snp_id])
+                    else:
+                        self.alleles["m2"][snp_id] = [read.bases[snp_id]]
         return pm_llhd
 
     @staticmethod
-    def random_choose(l):
+    def random_choose(l, p):
         """must be one-d, a list or an integer works. dictionaries not."""
-        s = len(l) // 2
+        s = int(len(l) * p)
         return np.random.choice(l, size=s, replace=False)
-
-    @staticmethod
-    def snp_read_dict(reads):
-        """Find the reads on a given snp position"""
-        sr_dict = {}
-        for read_id, read in enumerate(reads):
-            for index, snp in enumerate(read.snps):
-                snp_id = read.snps_id[index]
-                if snp_id not in sr_dict.keys():
-                    sr_dict[snp_id] = [read_id]
-                else:
-                    sr_dict[snp_id].append(read_id)
-        return sr_dict
 
     def update(self, reads, sr_dict, pm_llhd, hard=False, pseudo_base=1e-1):
         """Update the probability matrix
         
         Args:
-            reads (List): List of reads.
+            reads (List): List of READS.
             sr_dict(Dictionary): Dictionary of snp snp map.
             pm_llhd (Float): Matrix of shape [Read_num,2].
             hard (Boolean): If update in hard manner.
@@ -123,19 +114,13 @@ class HMM:
                 else:
                     count[self.observations.index(read.bases[snp_id]), 0] += np.exp(pm_llhd[read_id, 0])
                     count[self.observations.index(read.bases[snp_id]), 1] += np.exp(pm_llhd[read_id, 1])
-                    #logging.error("pm_llhd[read_id, 0] * 1 is negative.")
             for state in range(len(self.STATEs)):
-                #print(count[:, state])
-                #print(np.sum(count[:, state]))
-                avg = (count[:, state] / np.sum(count[:, state]))
-                self.emission_probs[snp_id, state, :] = avg #(count[:, state] / np.sum(count[:, state]))
-                for i in avg:
-                    assert 0 < i < 1
+                self.emission_probs[snp_id, state, :] = (count[:, state] / np.sum(count[:, state]))
 
-    def alter_update(self, reads, sr_dict, pm_llhd, pseudo_base=1e-1):
-        """Only consider a part of SNPs site in a read.
+    def alter_update(self, percen, reads, sr_dict, pm_llhd, pseudo_base=1e-1):
+        """Only consider a part of SNPS site in a read.
         soft update manner"""
-        snps = self.random_choose(list(sr_dict.keys()))
+        snps = self.random_choose(list(sr_dict.keys()), percen)
         for snp_id in snps:
             snp = self.SNPs[snp_id]
             count = np.zeros((len(self.observations), 2))
@@ -145,14 +130,7 @@ class HMM:
                 count[self.observations.index(read.bases[snp.id]), 0] += np.exp(pm_llhd[read_id, 0])
                 count[self.observations.index(read.bases[snp.id]), 1] += np.exp(pm_llhd[read_id, 1])
             for state in range(len(self.STATEs)):
-                avg = (count[:, state] / np.sum(count[:, state]))
-                self.emission_probs[snp_id, state, :] = avg
-                for i in avg:
-                    assert 0 < i < 1
-
-    ##########################
-    def minimize(self):
-        pass
+                self.emission_probs[snp_id, state, :] = (count[:, state] / np.sum(count[:, state]))
 
     def get_alleles(self):
         """Return a dict."""
@@ -179,13 +157,13 @@ class HMM:
             return h1, h2
 
     def get_snps_pos(self):
-        """Return two lists of SNPs loci."""
+        """Return two lists of SNPS loci."""
         p1 = sorted(list(self.alleles["m1"].keys()))
         p2 = sorted(list(self.alleles["m2"].keys()))
         diff1 = []
         diff2 = []
         if len(p1) != len(p2):
-            print("The number of SNPs in two states are different.")
+            print("The number of SNPS in two states are different.")
             for snp in p1:
                 if snp not in p2:
                     diff1.append(snp)
@@ -195,7 +173,7 @@ class HMM:
                     diff2.append(snp)
             print("These SNP loci only appear in state 2: {}".format(diff2))
         elif p1 == p2:
-            print("SNPs loci generated by two states are the same.")
+            print("SNPS loci generated by two states are the same.")
         print(p1)
         print(p2)
         return p1, p2
@@ -250,6 +228,26 @@ class HMM:
         self.observations = ob
 
 
+def snp_read_dict(reads, limited=False, min=5):
+    """Find the READS on a given snp position"""
+    sr_dict = {}
+    for read_id, read in enumerate(reads):
+        for index, snp in enumerate(read.snps):
+            snp_id = read.snps_id[index]
+            if snp_id not in sr_dict.keys():
+                sr_dict[snp_id] = [read_id]
+            else:
+                sr_dict[snp_id].append(read_id)
+    if not limited:
+        return sr_dict
+    else:
+        sr_d = {}
+        for snp in sr_dict:
+            if len(sr_dict[snp]) > min:
+                sr_d[snp] = sr_dict[snp]
+        return sr_d
+
+
 def run_model(snps, reads, iter_num, hard=False, updateAll=True):
     """Set iteration times, run a model.
     Alternative: iterate until theta converge."""
@@ -257,7 +255,7 @@ def run_model(snps, reads, iter_num, hard=False, updateAll=True):
     model.init_emission_matrix()
     s = np.zeros((iter_num, 2))
     for _ in range(iter_num):
-        sr_dict = model.snp_read_dict(reads)
+        sr_dict = snp_read_dict(reads, True, min=10)
         pm_llhd = model.assign_reads(reads)
         #print(model.emission_probs[9519,:])
         #print((np.sum(pm_llhd[:,1]),np.sum(pm_llhd[:,0])))
@@ -266,37 +264,39 @@ def run_model(snps, reads, iter_num, hard=False, updateAll=True):
         if updateAll:
             model.update(reads, sr_dict, pm_llhd, hard=hard)
         else:
-            model.alter_update(reads, sr_dict, pm_llhd)
-    #save_scatter_plot_fig(s[:, 0], "model0.png")
+            model.alter_update(reads, sr_dict, pm_llhd, 0.4)
     return model
 
 
-def models_iterations(iter_times, snps, reads, hard=False, updateAll=False):
-    """Generate a markov model multiple times."""
-    model = run_model(snps, reads, 10, hard=hard)
-    for _ in range(iter_times):
-        last_model = model
-        model = run_model(snps, reads, 10, hard=hard)
-        compare_models(last_model, model)
-
-
-def compare_haplotypes(h11, h12):
+def compare_haplotypes(h11, h12):  # sr_dict
     """
     Compare two haplotype dictionaries.
     :param h11: (dict) {snp_pos: base, snp_base: base}
     :param h12: (dict) {snp_pos: base, snp_base: base}
     :return: diff (dict) Missing, Un-match SNP sites and read bases.
+            same (float) num of (h11 & h12) same / num of all h11 alleles
+
+            save same & diff snp sites
+            need: snp pos (snp id), all READS map to that snp
     """
-    diff = {"h1": {}, "h2": {}, "diff": {}}
-    for key in h11:
-        if key not in h12:
-            diff["h1"][key] = h11[key]
-        elif h11[key] != h12[key]:
-            diff["diff"][key] = (h11[key], h12[key])
-    for k in h12:
-        if k not in h11:
-            diff["h2"][k] = h12[k]
-    return diff
+    same = {}
+    diff = {}
+    for snp_id in h11:
+        if snp_id in h12:
+            if set(h11[snp_id]) == set(h12[snp_id]):  # if bases mapped to this pos are identical
+                same[snp_id] = len(h11[snp_id])
+            else:  # if bases mapped to this site are different
+                diff[snp_id] = (len(h11[snp_id]), len(h12[snp_id]))  # TODO: what info should be store here
+        else:  # if this SNP site only occurs in h11
+            diff[snp_id] = len(h11[snp_id])
+    for snp in h12:
+        if snp not in h11:
+            diff[snp] = len(h12[snp])
+    #same = h11.items() & h12.items()
+    #diff = h11.items() - h12.items() | h12.items() - h11.items()
+    plot_sr_dict(same, "same.png")
+    plot_sr_dict(diff, "diff.png")
+    return same, diff, (len(same)/len(h11), len(same)/len(h12))
 
 
 def compare_models(m1, m2):
@@ -304,46 +304,44 @@ def compare_models(m1, m2):
     Compare haplotype clusters generate by two hidden markov models.
     :param m1: (HMM object) a HMM hidden markov model
     :param m2: (HMM) a hidden markov model
-    :return: (None) print out changes between clusters. (addition, missing, different bases on the same SNP sites)
+    :return (dict) snp_pos: reads numbers
     """
-    h11 = m1.get_alleles()["m1"]
-    h12 = m1.get_alleles()["m2"]
-    h21 = m2.get_alleles()["m1"]
-    h22 = m2.get_alleles()["m2"]
+    snp_sites = []
+    a1 = m1.get_alleles()
+    a2 = m2.get_alleles()
+    for state in a1:
+        for s in a2:
+            print("model1: state {}; model2: state {}".format(state, s))
+            r = compare_haplotypes(a1[state], a2[s])
+            print("On {} SNP sites, alleles are identical. {}% of model1. {}% of model2".format(len(r[0]), r[2][0], r[2][1]))
+            print("On {} SNP sites, alleles are different.".format(len(r[1])))
+            snp_sites.append(r[0])
 
-    # h1 vs h1, h2 vs h2
-    d1 = compare_haplotypes(h11, h21)
-    d2 = compare_haplotypes(h12, h22)
-    # h1 vs h2, h2 vs h1
-    d3 = compare_haplotypes(h11, h22)
-    d4 = compare_haplotypes(h12, h21)
+    same_snp_site = {}
+    for i, snp_list in enumerate(snp_sites):
+        for pos in snp_list:
+            if pos in snp_sites[i-1]:
+                same_snp_site[pos] = snp_list[pos]
+    return same_snp_site
 
-    print("model1 cluster1 has {} alleles, model2 cluster1 has {} alleles.\n{} bases are different, "
-          "{} bases only in model1 cluster1, {} bases only in model2 cluster1.".format(len(h11), len(h21),
-                                                                                   len(d1["diff"]),
-                                                                                   len(d1["h1"]),
-                                                                                   len(d1["h2"])))
-    print("model1 cluster2 has {} alleles, model2 cluster2 has {} alleles.\n{} bases are different, "
-          "{} bases only in model1 state2, {} bases only in model2 state2.".format(len(h12), len(h22),
-                                                                                   len(d2["diff"]),
-                                                                                   len(d2["h1"]),
-                                                                                   len(d2["h2"])))
-    print("model1 cluster1 has {} alleles, model2 cluster2 has {} alleles.\n{} bases are different, "
-          "{} bases only in model1 cluster1, {} bases only in model2 cluster2.".format(len(h11), len(h22),
-                                                                                   len(d3["diff"]),
-                                                                                   len(d3["h1"]),
-                                                                                   len(d3["h2"])))
-    print("model1 cluster2 has {} alleles, model2 cluster1 has {} alleles.\n{} bases are different, "
-          "{} bases only in model1 cluster2, {} bases only in model2 cluster1.\n".format(len(h12), len(h21),
-                                                                                   len(d4["diff"]),
-                                                                                   len(d4["h1"]),
-                                                                                   len(d4["h2"])))
+
+def models_iterations(iter_times, snps, reads, hard=False, updateAll=True):
+    """Generate a markov model multiple times."""
+    model = run_model(snps, reads, 10, hard=hard)
+    results = np.zeros((iter_times, iter_times))   # save comparision results of multiple models
+    for i in range(iter_times+1):  # i = base model
+        last_model = model
+        model = run_model(snps, reads, 10, hard=hard, updateAll=updateAll)
+        r = compare_models(last_model, model)
+        results[i, i] = 1
+        results[i, i+1] = r[0]
+    return results
 
 
 def gold_standard(g_dict, m_dict):
     """compare model dict with this gold standard dict
-    only use SNPs loci that been covered by Nanopore read in the model
-    no need to use all the SNPs from the VCF file"""
+    only use SNPS loci that been covered by Nanopore read in the model
+    no need to use all the SNPS from the VCF file"""
     diff = {}
     for key in g_dict:
         diff[key] = {}
@@ -360,12 +358,16 @@ def gold_standard(g_dict, m_dict):
 
 
 if __name__ == "__main__":
-    all_snps = load_objects("../data/snps.obj")
-    reads = load_objects("../data/reads.obj")
-    #m = run_model(all_snps, reads, 10)
-    model = HMM(all_snps, ["P", "M"])
-    model.init_emission_matrix()
-    sr_dict = model.snp_read_dict(reads)
-    pm_llhd = model.assign_reads(reads)
-    model.update(reads, sr_dict, pm_llhd)
-    #print(model.emission_probs.shape)  # (50746, 2, 4)
+    SNPS = load_objects("../data/snps.obj")
+    READS = load_objects("../data/reads.obj")
+    #SR_DICT = snp_read_dict(READS)
+    # gene DNMT1, chr19: 10133345 - 10231286 bp
+    m1 = run_model(SNPS, READS, 100)
+    m2 = run_model(SNPS, READS, 100)
+    r1 = compare_models(m1, m2)
+    m3 = run_model(SNPS, READS, 100)
+    r2 = compare_models(m2, m3)
+    r3 = compare_models(m1, m3)
+    print(1 - len(set(r1)-set(r2)) / len(r1))
+    print(1 - len(set(r1)-set(r3)) / len(r1))
+    print(1 - len(set(r2)-set(r3)) / len(r2))
