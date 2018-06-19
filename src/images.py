@@ -2,11 +2,14 @@ import ggplot as gp
 from matplotlib import pyplot as plt
 from matplotlib import style
 from dna_features_viewer import GraphicFeature, GraphicRecord
+from src.handlefiles import read_fastq
+
+CHR19_REF_SEQ = read_fastq("../data/GRCh38_full_analysis_set_plus_decoy_hla.fa")
 
 
 def models_llhd(pm_llhd):
     """
-    Tracking the total likelihood of reads in a model(cluster).
+    Tracking the total likelihood of READS in a model(cluster).
     :param pm_llhd: (np.array) matrix stores read likelihood in every model/cluster.
     :param type (
 
@@ -34,8 +37,22 @@ def haplotype_blocks_fig(model, ref_seq):
     s1, s2 = model.read_results()
     record = GraphicRecord(sequence=ref_seq, sequence_length=len(ref_seq),
                            features=[GraphicFeature(start=0, end=len(s1), strand=+1, color='#ffcccc'),
-                                     GraphicFeature(start=0, end=len(s2), strand=+1, color='#ffcccc')])  # change color
+                                     GraphicFeature(start=0, end=len(s2), strand=+1, color='#cffccc')])
     ax, _ = record.plot(figure_width=5)
     record.plot_sequence(ax)
     record.plot_translation(ax, (8, 23), fontdict={'weight': 'bold'})
     ax.figure.savefig('haplotypes.png', bbox_inches='tight')
+
+
+def plot_sr_dict(sr_dict, fn):
+    """
+    x: snp_id
+    y:mapped reads numbers
+    """
+    snps = list(sr_dict.keys())
+    reads_num = []
+    for snp in sr_dict:
+        reads_num.append(len(sr_dict[snp]))
+    plt.scatter(snps, reads_num)
+    plt.savefig(fn, bbox_inches="tight")
+    plt.show()
