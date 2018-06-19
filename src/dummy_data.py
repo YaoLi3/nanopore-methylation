@@ -1,13 +1,13 @@
 # Author: Haotian Teng
 import numpy as np
 from src.nanoporereads import *
-from snps import *
-from handlefiles import save_objects
+from src.snps import *
+from src.handlefiles import save_objects
 
 
 ### Initialization
-AVERAGE_LEN = 4 * 10e3  # Average length of sequence reads
-STD_LEN = 10e3  # Standard deviation of the length of sequence reads
+AVERAGE_LEN = 4 * 10e3  # Average length of sequence READS
+STD_LEN = 10e3  # Standard deviation of the length of sequence READS
 SNP_INTERVAL = 3 * 10e2  # Average interval of the SNP among the read
 ERROR_RATE = 0.2  # Basecalling error rate
 REGION_LEN = 60 * 10e3  # The total length of the sequencing region(Chromsome)
@@ -16,8 +16,8 @@ BASE = ['A', 'G', 'C', 'T']  # base list
 MATERNAL_SNPS = []  # True maternal SNP list
 PATERNAL_SNPS = []  # True paternal SNP list
 SNP_POS = []  # True SNP position among the region
-READS = []  # The collection of the SNP of reads, it is a list of SNP list,
-# e.g. [ [First read SNPs], [Second read SNPs], ...]
+READS = []  # The collection of the SNP of READS, it is a list of SNP list,
+# e.g. [ [First read SNPS], [Second read SNPS], ...]
 LEN_FUNC = np.random.normal
 START_FUNC = np.random.uniform
 SNP_FUNC = np.random.uniform
@@ -95,7 +95,7 @@ def substitute_base(base_list, transfer_matrix):
 READ_START = 0
 READ_LEN = 0
 READS_NUM = 1000
-READ_REGION = [2 * 10e3, 10 * 10e3]  # The sub region of the reads, the read is restricted in this region
+READ_REGION = [2 * 10e3, 10 * 10e3]  # The sub region of the READS, the read is restricted in this region
 error_matrix = generate_uniform_transfer_matrix(ERROR_RATE)
 
 ID = 0
