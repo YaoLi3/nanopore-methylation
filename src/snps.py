@@ -9,7 +9,7 @@ import pysam
 
 class SNP:
     """
-    Human SNPs data.
+    Human SNPS data.
     chr, pos, id, ref, alt, qual, filter, info, gt
     (ignore all indel variants)
 
@@ -32,17 +32,17 @@ class SNP:
         self.detect_type()
         self.close_snps = []
 
-        # Nanopore reads attr
-        self.reads = []  # reads snp_id mapped to this position
+        # Nanopore READS attr
+        self.reads = []  # READS snp_id mapped to this position
 
     def detect_mapped_reads(self, reads_data):
-        """Find all the reads that map to this position."""
+        """Find all the READS that map to this position."""
         for read in reads_data:
             if self.chr == read.chr and read.start <= self.pos <= read.end:
                 self.reads.append(read)
 
     def detect_close_snps(self, snps):
-        """Find SNPs that are close to this SNP on genome."""
+        """Find SNPS that are close to this SNP on genome."""
         for snp in snps:
             if snp.chr == self.chr and abs(self.pos - snp.pos) < 100:  # within how many bp is close?
                 self.close_snps.append(snp)
@@ -81,7 +81,7 @@ class SNP:
 
 
 def find_most_reads_snp(snps_list):
-    """Find the SNP that has the most number of reads mapped to its position.
+    """Find the SNP that has the most number of READS mapped to its position.
     Assume no "tie" situation."""
     return sorted(snps_list)[-1]
 
@@ -90,12 +90,12 @@ def load_VCF(vcf_file):
     """
     Read a VCF file and return he data in it.
     :param vcf_file: (string) VCF file name
-    :return: all_snps: (list) SNPs instances
+    :return: SNPS: (list) SNPS instances
     """
     try:
         f = open(vcf_file, "r")
         all_snps = []
-        n = 0  # snp_id, = SNPs.index(snp)
+        n = 0  # snp_id, = SNPS.index(snp)
         for line in f:
             if line.startswith("chr"):
                 chrom, pos, snp_id, ref, alt, qual, fltr, \
@@ -123,14 +123,14 @@ def load_vcf_file(vcf_fn):  # TODO: convert file chr19.vcf into VCF format
 
 def map_reads(snps, reads):
     """
-    Find reads mapped to each SNP position.
+    Find READS mapped to each SNP position.
     :return list of snps have read mapped to
     """
     return [snp.detect_mapped_reads(reads) for snp in snps]
 
 
 def assemble_haplotypes(snps):
-    """Input phased SNPs data. Assemble haplotype strings for two chromosomes."""
+    """Input phased SNPS data. Assemble haplotype strings for two chromosomes."""
     h = {"A": {}, "B": {}}
     for snp in snps:
         if snp.gt == "1|0":
