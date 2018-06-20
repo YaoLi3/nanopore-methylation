@@ -1,9 +1,10 @@
 # nanopore-methylation
 
 # Handle NA12878 data
-imprinted_regions = read_imprinted_data("data/ip_gene_pos.txt")　　
-SNPS = load_VCF("data/chr19.vcf")　　
-READS = load_sam_file("data/chr19_merged.sam", "19", SNPS)　　
+
+	imprinted_regions = read_imprinted_data("data/ip_gene_pos.txt")　　
+	SNPS = load_VCF("data/chr19.vcf")　　
+	READS = load_sam_file("data/chr19_merged.sam", "19", SNPS)　　
 
 Find READS overlapping with any human imprinted region
 
