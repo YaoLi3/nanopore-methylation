@@ -8,7 +8,7 @@
 
 Find READS overlapping with any human imprinted region
 
-o = get_overlapped_reads(READS, imprinted_regions)
+	o = get_overlapped_reads(READS, imprinted_regions)
 
 Save pre-processed data
 
