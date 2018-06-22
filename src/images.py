@@ -1,4 +1,5 @@
 import ggplot as gp
+import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import style
 from dna_features_viewer import GraphicFeature, GraphicRecord
@@ -34,7 +35,7 @@ def save_scatter_plot_fig(content, fn):
 
 
 def haplotype_blocks_fig(model, ref_seq):
-    s1, s2 = model.read_results()
+    s1, s2 = model.align_alleles()
     record = GraphicRecord(sequence=ref_seq, sequence_length=len(ref_seq),
                            features=[GraphicFeature(start=0, end=len(s1), strand=+1, color='#ffcccc'),
                                      GraphicFeature(start=0, end=len(s2), strand=+1, color='#cffccc')])
@@ -47,12 +48,20 @@ def haplotype_blocks_fig(model, ref_seq):
 def plot_sr_dict(sr_dict, fn):
     """
     x: snp_id
-    y:mapped reads numbers
+    y: mapped reads numbers
     """
-    snps = list(sr_dict.keys())
-    reads_num = []
+    snps = sorted(list(sr_dict.keys()))
+    l1 = []
+    l2 = []
     for snp in sr_dict:
-        reads_num.append(len(sr_dict[snp]))
-    plt.scatter(snps, reads_num)
+        l1.append(sr_dict[snp][0])
+        l2.append(sr_dict[snp][1])
+    #my_x_ticks = np.arange(9490, 50000, 20)
+    #plt.xticks(my_x_ticks)
+    plt.scatter(snps, l1, label="1st haplotype")
+    plt.scatter(snps, l2, c="red", label="2nd haplotype")
+    plt.xlabel(u"SNP id")
+    plt.ylabel(u"Reads num")
+    plt.legend(loc='upper right')
     plt.savefig(fn, bbox_inches="tight")
     plt.show()
