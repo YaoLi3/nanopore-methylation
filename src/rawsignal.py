@@ -44,5 +44,5 @@ def find_haplotype(raw_signals, haplotypes):
     return h1, h2
 
 
-if __name__ == "__main__":
-    raw_signals = get_raw_segment("fast5/", "../data/raw_signals/", ir_pos)  # I probably don't have ir_pos any more, damn it
+#if __name__ == "__main__":
+    #raw_signals = get_raw_segment("fast5/", "../data/raw_signals/", ir_pos)  # I probably don't have ir_pos any more, damn it
