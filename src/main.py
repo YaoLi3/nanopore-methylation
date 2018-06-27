@@ -21,19 +21,25 @@ from src.images import haplotype_blocks_fig
 #save_objects("data/reads_ir.obj", o)
 
 """Load pre-processed data"""
-all_snps = load_objects("../data/snps.obj")
-reads = load_objects("../data/READS.obj")
+#all_snps = load_objects("../data/snps.obj")
+#ip_snps = []
+#for snp in all_snps:
+    #if 10133345 <= snp.pos <= 10231286:
+        #ip_snps.append(snp)
+#print(ip_snps[-1].id)
+
+#reads = load_objects("../data/READS.obj")
 #reads_ir = load_objects("data/reads_ir.obj")
 
 """HMM, clustering SNPS into 2 possible haplotypes"""
 # Simulation
-dummy_reads = load_objects("../data/dummy/dr1.obj")  # 1000 READS  # self.bases, snps_id work
-dummy_snps = load_objects("../data/dummy/ds1.obj")  # 200 snps
-dm1 = run_model(dummy_snps, dummy_reads, 10)
-print(dm1.read_results()[0])
+#dummy_reads = load_objects("../data/dummy/dr1.obj")  # 1000 READS  # self.bases, snps_id work
+#dummy_snps = load_objects("../data/dummy/ds1.obj")  # 200 snps
+#dm1 = run_model(dummy_snps, dummy_reads, 10)
+#print(dm1.align_alleles()[0])
 #dm2 = run_model(dummy_snps, dummy_reads, 10)
 #compare_models(dm1, dm2)
 
 
 """Visualize haplotypes"""
-haplotype_blocks_fig(dm1, dm1.read_results()[0])
+#haplotype_blocks_fig(dm1, dm1.align_alleles()[0])

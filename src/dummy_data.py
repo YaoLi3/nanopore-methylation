@@ -12,8 +12,8 @@ ERROR_RATE = 0.2  # Basecalling error rate
 REGION_LEN = 60 * 10e3  # The total length of the sequencing region(Chromsome)
 BASE_PROP = [0.25, 0.25, 0.25, 0.25]  # Probability of A,G,C,T
 BASE = ['A', 'G', 'C', 'T']  # base list
-MATERNAL_SNPS = []  # True maternal SNP list
-PATERNAL_SNPS = []  # True paternal SNP list
+two_SNPS = []  # True maternal SNP list
+one_SNPS = []  # True paternal SNP list
 SNP_POS = []  # True SNP position among the region
 READS = []  # The collection of the SNP of READS, it is a list of SNP list,
 # e.g. [ [First read SNPS], [Second read SNPS], ...]
@@ -33,7 +33,7 @@ while SNP_START < REGION_LEN:
     for idx, prop in enumerate(BASE_PROP):
         maternal_prop += prop
         if maternal_prop >= maternal_roll:
-            MATERNAL_SNPS.append(BASE[idx])
+            two_SNPS.append(BASE[idx])
             maternal_idx = idx
             break
     paternal_roll = SNP_FUNC(low=0, high=(np.sum(BASE_PROP) - BASE_PROP[maternal_idx]))
@@ -45,28 +45,28 @@ while SNP_START < REGION_LEN:
         else:
             paternal_prop += prop
             if paternal_prop >= paternal_roll:
-                PATERNAL_SNPS.append(BASE[idx])
+                one_SNPS.append(BASE[idx])
                 break
-PATERNAL_SNPS = np.asarray(PATERNAL_SNPS)  # 201
-MATERNAL_SNPS = np.asarray(MATERNAL_SNPS)  # 201
-SNP_POS = np.asarray(SNP_POS)
+#one_SNPS = np.asarray(one_SNPS)  # 201
+#two_SNPS = np.asarray(two_SNPS)  # 201
+#SNP_POS = np.asarray(SNP_POS)
 
 # Sorting
 sort_index = np.argsort(SNP_POS)
-PATERNAL_SNPS = PATERNAL_SNPS[sort_index]
-MATERNAL_SNPS = MATERNAL_SNPS[sort_index]
-SNP_POS = SNP_POS[sort_index]
+#one_SNPS = one_SNPS[sort_index]
+#two_SNPS = two_SNPS[sort_index]
+#SNP_POS = SNP_POS[sort_index]
 
 # Randomly decide (ref-alt)
-SNP_OBJ = []
-for idx, pos in enumerate(SNP_POS):
-    if np.random.rand() >= .5:
-        SNP_OBJ.append(SNP(19, idx, pos, PATERNAL_SNPS[idx], MATERNAL_SNPS[idx], "1|0"))
-    else:
-        SNP_OBJ.append(SNP(19, idx, pos, MATERNAL_SNPS[idx], PATERNAL_SNPS[idx], "0|1"))
+#SNP_OBJ = []
+#for idx, pos in enumerate(SNP_POS):
+    #if np.random.rand() >= .5:
+        #SNP_OBJ.append(SNP(19, idx, pos, one_SNPS[idx], two_SNPS[idx], "1|0"))
+    #else:
+        #SNP_OBJ.append(SNP(19, idx, pos, two_SNPS[idx], one_SNPS[idx], "0|1"))
 
 # Packing
-PM_SNP = np.asarray(list(zip(PATERNAL_SNPS, MATERNAL_SNPS, SNP_POS)),
+PM_SNP = np.asarray(list(zip(one_SNPS, two_SNPS, SNP_POS)),
                     dtype=[('paternal', 'U1'), ('maternal', 'U1'), ('pos', 'i4')])
 
 
@@ -126,7 +126,7 @@ while True:
     # read objects
     r_obj = NanoporeRead(ID, 19, READ_START, (READ_LEN+READ_START), 60)
     r_obj.set_bases(BASES)
-    r_obj.detect_snps(SNP_OBJ)
+    #r_obj.detect_snps(SNP_OBJ)
     R_OBJ.append(r_obj)
     ID += 1
 
@@ -134,12 +134,12 @@ while True:
         break
 
 save_objects("data/dr1.obj", R_OBJ)
-save_objects("data/ds1.obj", SNP_OBJ)
+#save_objects("data/ds1.obj", SNP_OBJ)
 
 s = []
-for snp in SNP_OBJ:
-    for read in R_OBJ:
-        if read.start <= snp.pos <= read.end:
-            if snp not in s:
-                s.append(snp)
-print(len(s))  # 27
+#for snp in SNP_OBJ:
+    #for read in R_OBJ:
+        #if read.start <= snp.pos <= read.end:
+            #if snp not in s:
+                #s.append(snp)
+#print(len(s))  # 27
