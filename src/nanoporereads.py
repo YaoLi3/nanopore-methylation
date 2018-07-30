@@ -5,7 +5,8 @@ __email__ = yao.li.binf@gmail.com
 __date__ = 08/02/2018
 """
 import pysam
-from src.handlefiles import save_objects
+import time
+from src.handlefiles import save_objects, load_objects
 from src.snps import load_VCF
 
 
@@ -19,7 +20,6 @@ class ImprintedRegion:
         self.start = int(start)  # hg38
         self.end = int(end)
         self.status = status
-
         self.reads = []  # READS have overlapped with this imprinted region
 
     def __str__(self):
@@ -50,30 +50,25 @@ class NanoporeRead:
     A nanopore sequencing snp instance. NA12878 data.
     """
 
-    def __init__(self, sequencer_id, chrom, start, end, quality, fastq_seq=None, rs=None):
+    def __init__(self, sequencer_id, chrom, start, end, cigar_tuples,
+                 reference_pos, matches_pos, quality, fastq_seq=None,
+                 rs=None):
         # Basic attr
         self.id = sequencer_id
         self.chr = chrom
-        self.start = int(start)
-        self.end = int(end)
+        self.start = start; self.end = end  # genomic position of first read base
+        self.cigar = cigar_tuples  # CIGAR value
         self.quality = quality  # mapping quality
-
+        self.positions = reference_pos  # genomic positions of read aligned fragments (ref pos, ref pos)
+        self.aligned_pairs = matches_pos  # dict {ref pos: seq index}
         self.seq = fastq_seq
         self.raw_signal = rs
-
         # SNP attr
-        self.snps = []
-        self.snps_id = []
-        self.bases = {}  # bases of read on SNPS loci. a mini haplotype  # bases, not base. {snp_id: read base}
-        self.gt = ""
-
+        self.bases = {}  # bases of read on SNPS loci. a mini haplotype, {pos: read base, snp2: base, snp3: base}
         # Imprinted regions attr
         self.if_ir = False
         self.region = None
         self.gene_name = ""
-        if self.seq is not None:
-            self.segment_pos = [0, len(self.seq)]  # overlap segment, snp_id on snp
-        self.seg_ref_pos = [0, 0]  # segment pos on ref genome
 
     def if_in_imprinted_region(self, ip_regions):
         """Decide if the snp has at least one base overlapping with any imprinted region."""
@@ -82,42 +77,41 @@ class NanoporeRead:
                 if region.start <= self.start <= region.end or region.start <= self.end <= region.end:
                     self.region = region
                     self.gene_name = region.gene
-                    self.seg_ref_pos = [self.start, self.end]
                     self.if_ir = True
         return self.if_ir
 
     def detect_snps(self, SNPs_data):
         """
-        Find snps in one READs.
-        :param SNPs_data: (list) all SNPS data
+        Find SNPs the read span.
+        Extract allele on these SNP positions.
         """
-        for snp_id, snp in enumerate(SNPs_data):
-            if snp.chr == self.chr and self.start <= snp.pos < self.end:  # check
-                self.snps.append(snp)
-                self.snps_id.append(snp_id)  # not necessary
-                if self.seq is not None:
-                    self.bases[snp_id] = self.get_base(snp.pos)
+        self.bases = {snp_id: self.get_base(snp.pos) for (snp_id, snp) in enumerate(SNPs_data)
+                      if snp.chr == self.chr and snp.pos in self.positions}
 
     def get_base(self, pos):
         """
         Extract sequence bases on given position.
-        :param pos: ref genome position
+        :param pos: ref genomic position
         :return: (str) a bases on sequence
         """
-        try:
-            index = int(pos) - int(self.start) - 1
-            return self.seq[index]
-        except IndexError:
-            print(self.start, self.end, pos)
+        return self.seq[self.aligned_pairs[pos]]
 
-    def get_dict_base(self, snp_idx):
+    def get_snp_id(self):
+        """Return a list of snp_id"""
+        return list(self.bases.keys())
+
+    def get_seq(self):
+        return self.seq
+
+    def get_base_by_snpID(self, snp_idx):
+        """snp_id - base"""
         return self.bases[snp_idx]
 
     def set_bases(self, bases):
         """List of bases"""
         self.bases = bases
 
-    def set_raw_signal(self, rs):
+    def set_raw_signals(self, rs):
         """
         Set the raw signal for snp.
         :param rs: (numpy array) raw signal
@@ -129,7 +123,8 @@ class NanoporeRead:
         self.seq = fastq
 
     def __str__(self):
-        return "{}:\t{}:{},{}".format(self.id, self.chr, self.start, self.end)
+        """Override the default String behavior"""
+        return "{}:\t{}:{}".format(self.id, self.chr, self.start)
 
     def __eq__(self, other):
         """Override the default Equals behavior"""
@@ -137,18 +132,37 @@ class NanoporeRead:
 
     def __ne__(self, other):
         """Override the default Unequal behavior"""
-        return self.id != other.id or self.snps != other.snps or self.start != other.start
+        return self.id != other.id or self.bases != other.bases
 
 
 def load_sam_file(samfile, chr, snps):
+    """
+
+    :param samfile:
+    :param chr:
+    :param snps:
+    :return:
+    """
     reads = []
     sf = pysam.AlignmentFile(samfile, "r")
     for read in sf:
-        if read.reference_name == ("chr" + chr) and 10 < read.mapq and 10000 <= read.qlen:
-            r = NanoporeRead(read.query_name, read.reference_name, read.pos, (read.pos + read.qlen), read.mapq,
-                             fastq_seq=read.seq)
+        # cigartupples = None means read unmapped
+        if read.cigartuples is not None and \
+                read.reference_name == ("chr" + chr) \
+                and 10 < read.mapping_quality \
+                and 10000 <= read.query_alignment_length:
+            r = NanoporeRead(read.query_name,
+                             read.reference_name,
+                             read.reference_start,
+                             read.reference_end,
+                             read.cigartuples,
+                             read.get_reference_positions(),
+                             list_to_dict(read.get_aligned_pairs(matches_only=True)),
+                             read.mapping_quality,
+                             fastq_seq=read.query_sequence)
             r.detect_snps(snps)
-            if not r.snps == []:
+            #print(r.bases)  TODO: check if correct
+            if not r.bases == []:
                 reads.append(r)
     sf.close()
     return reads
@@ -156,9 +170,9 @@ def load_sam_file(samfile, chr, snps):
 
 def get_overlapped_reads(reads, regions):
     """
-        For a given sam file, find out if there is any READs in the file
-        is located in human genetic imprinted regions.
-        """
+    For a given sam file, find out if there is any READs in the file
+    is located in human genetic imprinted regions.
+    """
     overlapped_reads = []
     for read in reads:
         if read.if_in_imprinted_region(regions):
@@ -175,12 +189,52 @@ def locate_snps(reads, snps):
     return [read.detect_snps(snps) for read in reads]
 
 
-if __name__ == "__main__":
+def count_bases(reads, all_snps):
+    """
+    :param reads:
+    :param all_snps:
+    :return:
+    """
+    ref = 0
+    alt = 0
+    other = 0
+    for read in reads:
+        for snp_id in read.bases:
+            if all_snps[snp_id].ref == read.bases[snp_id]:
+                ref += 1
+            elif all_snps[snp_id].alt == read.bases[snp_id]:
+                alt += 1
+            else:
+                other += 1
+
+    print((ref + alt) / (ref + alt + other))
+    print(other / (ref + alt + other))
+
+
+def list_to_dict(l):
+    """Turn a l of tuples into a dictionary."""
+    return {k: v for v, k in l}
+
+
+def main():
     imprinted_regions = read_imprinted_data("../data/ip_gene_pos.txt")
-    all_snps = load_VCF("../data/chr13.vcf")  # 50745 SNPS
-    reads = load_sam_file("../data/chr13.sam", "13", all_snps)  # 8969 filtered READS out of 50581 total rs
+    all_snps = load_VCF("../data/chr19.vcf")  # 50745 SNPS
+    start = time.clock()
+    reads = load_sam_file("../data/chr19_merged.sam", "19", all_snps)  # 8969 filtered READS out of 50581 total rs
+    elapsed = (time.clock() - start)
+    print("load_sam_file: Time used:", elapsed)
+    print(len(reads))  # 8850  # 8849  # 8075: only matches ref or alt
+    count_bases(reads, all_snps)
+    # r1 = reads[0]
+    # print(r1.positions)  # (pos1, pos2), (pos2, pos3). poses[1] should be included
+    # print(r1.cigar[:10])  # matches with positions
+
     # Find READS overlapping with any human imprinted region
-    o = get_overlapped_reads(reads, imprinted_regions)  # 86
-    save_objects("../data/chr13_snps.obj", all_snps)
-    save_objects("../data/chr13_reads.obj", reads)
-    save_objects("../data/chr13_reads_ir.obj", o)
+    # o = get_overlapped_reads(reads, imprinted_regions)  # 86
+    # save_objects("../data/chr19_snps.obj", all_snps)
+    save_objects("../data/chr19_reads_pysam.obj", reads)
+    # save_objects("../data/chr19_reads_ir_matched.obj", o)
+
+
+if __name__ == "__main__":
+    main()

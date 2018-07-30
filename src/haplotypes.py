@@ -3,7 +3,8 @@ import math
 import collections
 import logging
 from src.handlefiles import load_objects
-from src.images import plot_sr_dict
+from src.images import plot_sr_dict, save_scatter_plot_fig
+from src.nanoporereads import *
 
 
 class HMM:
@@ -208,12 +209,12 @@ class HMM:
         h1 = ""; h2 = ""; blank = "-"
         for pos in snps_loci:
             if pos in self.haplotypes["m1"]:
-                h1 += self.haplotypes["m1"][pos]
+                h1 += self.haplotypes["m1"][pos][0]
             else:
                 h1 += blank
         for pos in snps_loci:
             if pos in self.haplotypes["m2"]:
-                h2 += self.haplotypes["m2"][pos]
+                h2 += self.haplotypes["m2"][pos][0]
             else:
                 h2 += blank
         return h1, h2
@@ -306,6 +307,7 @@ def run_model(snps, reads, iter_num, hard=False, updateAll=True, p=0.5):
             model.update(reads, sr_dict, pm_llhd, hard=hard)
         else:  # randomly choose p% SNP sites to update
             model.alter_update(reads, sr_dict, pm_llhd, p)
+    #save_scatter_plot_fig(s, "likelihood_value.png")
     return model
 
 
@@ -317,10 +319,64 @@ def same_snp_sites(h1, h2):  # sr_dict
     for snp_id in h1:
         if snp_id in h2 and h2[snp_id][0] == h1[snp_id][0]:
             same[snp_id] = (h1[snp_id][1], h2[snp_id][1], h1[snp_id])
-    same_p = len(same) / len(h1)
+    if len(h1) == 0:
+        same_p = 0
+    else:
+        same_p = len(same) / len(h1)
+    if len(h2) == 0:
+        same_p2 = 0
+    else:
+        same_p2 = len(same) / len(h2)
     print("{}% of the first haplotype alleles are the same as the second haplotype alleles.".format(same_p))
-    print("{}% of the second haplotype alleles are the same as the first haplotype alleles.".format(len(same)/len(h2)))
+    print("{}% of the second haplotype alleles are the same as the first haplotype alleles.".format(same_p2))
     return same
+
+
+def find_common_poses(m1, m4):
+    m1h = m1.get_haplotypes()
+    m4h = m4.get_haplotypes()
+
+    snp_posesm1 = []
+    for snp_pos in m1h["m1"]:
+        if m1h["m1"][snp_pos][1] == 1:
+            pass
+        else:
+            if snp_pos not in snp_posesm1:
+                snp_posesm1.append(snp_pos)
+    snp_posesm2 = []
+    for snp_pos in m1h["m2"]:
+        if m1h["m2"][snp_pos][1] == 1:
+            pass
+        else:
+            if snp_pos not in snp_posesm2:
+                snp_posesm2.append(snp_pos)
+
+    snp_poses2m1 = []
+    for snp_pos in m4h["m1"]:
+        if m4h["m1"][snp_pos][1] == 1:
+            pass
+        else:
+            if snp_pos not in snp_poses2m1:
+                snp_poses2m1.append(snp_pos)
+    snp_poses2m2 = []
+    for snp_pos in m4h["m2"]:
+        if m4h["m2"][snp_pos][1] == 1:
+            pass
+        else:
+            if snp_pos not in snp_poses2m2:
+                snp_poses2m2.append(snp_pos)
+
+    positions = [snp_posesm1, snp_posesm2, snp_poses2m1, snp_poses2m2]
+    same_pos = set(positions[0])
+    for s in positions[1:]:
+        same_pos.intersection_update(s)
+
+    print(len(same_pos)/len(snp_posesm1))
+    print(len(same_pos)/len(snp_posesm2))
+    print(len(same_pos)/len(snp_poses2m1))
+    print(len(same_pos)/len(snp_poses2m2))
+    print(len(same_pos))
+    return same_pos
 
 
 def diff_snp_sites(h1, h2):
@@ -333,39 +389,48 @@ def diff_snp_sites(h1, h2):
     for snp in h2:
         if snp not in h1:
             diff[snp] = (0, h2[snp][1])
-    print("{}% of the first haplotype alleles are different from the second haplotype alleles.".format(len(diff) / len(h1)))
-    print("{}% of the second haplotype alleles are different from the first haplotype alleles.".format(len(diff) / len(h2)))
+
+    if len(h1) == 0:
+        diff_p = 0
+    else:
+        diff_p = len(diff) / len(h1)
+    if len(h2) == 0:
+        diff_p2 = 0
+    else:
+        diff_p2 = len(diff) / len(h2)
+    print("{}% of the first haplotype alleles are different from the second haplotype alleles.".format(diff_p))
+    print("{}% of the second haplotype alleles are different from the first haplotype alleles.".format(diff_p2))
     return diff
 
 
-def compare_models(m1, m2):
+def compare_models(a1, a2):
     """
     same. pos. read num. percentage.
     diff.
     """
-    a1 = m1.get_haplotypes()
-    a2 = m2.get_haplotypes()
-    plot_sr_dict(same_snp_sites(a1["m1"], a2["m1"]), "same_m1m1.png")
-    plot_sr_dict(same_snp_sites(a1["m1"], a2["m2"]), "same_m1m2.png")
-    plot_sr_dict(same_snp_sites(a1["m2"], a2["m1"]), "same_m2m1.png")
-    plot_sr_dict(same_snp_sites(a1["m2"], a2["m1"]), "same_m2m2.png")
-    plot_sr_dict(diff_snp_sites(a1["m1"], a2["m1"]), "diff_m1m1.png")
-    plot_sr_dict(diff_snp_sites(a1["m1"], a2["m2"]), "diff_m1m2.png")
-    plot_sr_dict(diff_snp_sites(a1["m2"], a2["m1"]), "diff_m2m1.png")
-    plot_sr_dict(diff_snp_sites(a1["m2"], a2["m2"]), "diff_m2m2.png")
+    #a1 = m1.get_haplotypes()
+    #a2 = m2.get_haplotypes()
+    same_snp_sites(a1["m1"], a2["m1"])
+    same_snp_sites(a1["m1"], a2["m2"])
+    same_snp_sites(a1["m2"], a2["m1"])
+    same_snp_sites(a1["m2"], a2["m1"])
+    diff_snp_sites(a1["m1"], a2["m1"])
+    diff_snp_sites(a1["m1"], a2["m2"])
+    diff_snp_sites(a1["m2"], a2["m1"])
+    diff_snp_sites(a1["m2"], a2["m2"])
 
 
 def compare_clustering(m1, m2, data):
     mm1 = m1.cluster_reads(data)
     mm4 = m2.cluster_reads(data)
-    plot_sr_dict(same_snp_sites(mm1["m1"], mm4["m1"]), "same_m1m1.png")
-    plot_sr_dict(same_snp_sites(mm1["m1"], mm4["m2"]), "same_m1m2.png")
-    plot_sr_dict(same_snp_sites(mm1["m2"], mm4["m1"]), "same_m2m1.png")
-    plot_sr_dict(same_snp_sites(mm1["m2"], mm4["m1"]), "same_m2m2.png")
-    plot_sr_dict(diff_snp_sites(mm1["m1"], mm4["m1"]), "diff_m1m1.png")
-    plot_sr_dict(diff_snp_sites(mm1["m1"], mm4["m2"]), "diff_m1m2.png")
-    plot_sr_dict(diff_snp_sites(mm1["m2"], mm4["m1"]), "diff_m2m1.png")
-    plot_sr_dict(diff_snp_sites(mm1["m2"], mm4["m2"]), "diff_m2m2.png")
+    same_snp_sites(mm1["m1"], mm4["m1"])
+    same_snp_sites(mm1["m1"], mm4["m2"])
+    same_snp_sites(mm1["m2"], mm4["m1"])
+    same_snp_sites(mm1["m2"], mm4["m1"])
+    diff_snp_sites(mm1["m1"], mm4["m1"])
+    diff_snp_sites(mm1["m1"], mm4["m2"])
+    diff_snp_sites(mm1["m2"], mm4["m1"])
+    diff_snp_sites(mm1["m2"], mm4["m2"])
 
 
 def models_iterations(iter_times, snps, reads, hard=False, updateAll=True):
@@ -400,16 +465,45 @@ def gold_standard(g_dict, m_dict):
     return diff
 
 
+def common_pos_haplotypes(m1, m4, same_pos):
+    h1 = m1.get_haplotypes()
+    h4 = m4.get_haplotypes()
+    new_h1 = {"m1": {}, "m2": {}}
+    new_h4 = {"m1": {}, "m2": {}}
+    #same_pos = find_common_poses(m1, m4)
+    for pos in same_pos:
+        new_h1["m1"][pos] = h1["m1"][pos]
+        new_h1["m2"][pos] = h1["m2"][pos]
+        new_h4["m1"][pos] = h4["m1"][pos]
+        new_h4["m2"][pos] = h4["m2"][pos]
+    return new_h1, new_h4
+
+
 if __name__ == "__main__":
-    SNPS = load_objects("../data/snps.obj")
-    READS = load_objects("../data/reads.obj")
-    IR_READS = load_objects("../data/reads_ir.obj")
+    SNPS = load_objects("../data/chr19_snps.obj")
+    READS = load_objects("../data/chr19_reads_matched.obj")
+    #IR_READS = load_objects("../data/chr19_reads_ir.obj")
     #DUMMY_READS = load_objects("../data/dummy_reads.obj")
     #DUMMY_SNPS = load_objects("../data/dummy_snps.obj")
+    #print(len(DUMMY_READS))
+    #print(len(DUMMY_SNPS))
+
     # gene DNMT1, chr19: 10133345 - 10231286 bp
 
     m1 = run_model(SNPS, READS, 100)
-    mm1 = m1.cluster_reads(IR_READS)
+    #mm1 = m1.cluster_reads(IR_READS)
     m4 = run_model(SNPS, READS, 100)
-    mm4 = m4.cluster_reads(IR_READS)
-    compare_clustering(m1, m4, IR_READS)
+    #mm4 = m4.cluster_reads(IR_READS)
+    #compare_clustering(m1, m4, IR_READS)
+    #compare_models(m1, m4)
+    h1 = m1.get_haplotypes()
+    h4 = m4.get_haplotypes()
+    new_h1 = {"m1": {}, "m2": {}}
+    new_h4 = {"m1": {}, "m2": {}}
+    same_pos = find_common_poses(m1, m4)
+    for pos in same_pos:
+        new_h1["m1"][pos] = h1["m1"][pos]
+        new_h1["m2"][pos] = h1["m2"][pos]
+        new_h4["m1"][pos] = h4["m1"][pos]
+        new_h4["m2"][pos] = h4["m2"][pos]
+    compare_models(new_h1, new_h4)

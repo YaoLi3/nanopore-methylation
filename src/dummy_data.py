@@ -47,23 +47,10 @@ while SNP_START < REGION_LEN:
             if paternal_prop >= paternal_roll:
                 one_SNPS.append(BASE[idx])
                 break
-#one_SNPS = np.asarray(one_SNPS)  # 201
-#two_SNPS = np.asarray(two_SNPS)  # 201
-#SNP_POS = np.asarray(SNP_POS)
 
 # Sorting
 sort_index = np.argsort(SNP_POS)
-#one_SNPS = one_SNPS[sort_index]
-#two_SNPS = two_SNPS[sort_index]
-#SNP_POS = SNP_POS[sort_index]
 
-# Randomly decide (ref-alt)
-#SNP_OBJ = []
-#for idx, pos in enumerate(SNP_POS):
-    #if np.random.rand() >= .5:
-        #SNP_OBJ.append(SNP(19, idx, pos, one_SNPS[idx], two_SNPS[idx], "1|0"))
-    #else:
-        #SNP_OBJ.append(SNP(19, idx, pos, two_SNPS[idx], one_SNPS[idx], "0|1"))
 
 # Packing
 PM_SNP = np.asarray(list(zip(one_SNPS, two_SNPS, SNP_POS)),
@@ -124,22 +111,15 @@ while True:
 
     print(BASES)
     # read objects
-    r_obj = NanoporeRead(ID, 19, READ_START, (READ_LEN+READ_START), 60)
+    r_obj = NanoporeRead(ID, 19, READ_START, (READ_LEN+READ_START),
+                         "cigar", (READ_START, (READ_LEN+READ_START)), (0, 0), 60)
     r_obj.set_bases(BASES)
-    #r_obj.detect_snps(SNP_OBJ)
     R_OBJ.append(r_obj)
     ID += 1
 
     if len(READS) >= READS_NUM:
         break
 
+# Save dummy data
 save_objects("data/dr1.obj", R_OBJ)
 #save_objects("data/ds1.obj", SNP_OBJ)
-
-s = []
-#for snp in SNP_OBJ:
-    #for read in R_OBJ:
-        #if read.start <= snp.pos <= read.end:
-            #if snp not in s:
-                #s.append(snp)
-#print(len(s))  # 27
