@@ -217,7 +217,7 @@ def list_to_dict(l):
 
 
 def main():
-    imprinted_regions = read_imprinted_data("../data/ip_gene_pos.txt")
+    # imprinted_regions = read_imprinted_data("../data/ip_gene_pos.txt")
     all_snps = load_VCF("../data/chr19.vcf")  # 50745 SNPS
     start = time.clock()
     reads = load_sam_file("../data/chr19_merged.sam", "19", all_snps)  # 8969 filtered READS out of 50581 total rs
@@ -225,10 +225,6 @@ def main():
     print("load_sam_file: Time used:", elapsed)
     print(len(reads))  # 8850  # 8849  # 8075: only matches ref or alt
     count_bases(reads, all_snps)
-    # r1 = reads[0]
-    # print(r1.positions)  # (pos1, pos2), (pos2, pos3). poses[1] should be included
-    # print(r1.cigar[:10])  # matches with positions
-
     # Find READS overlapping with any human imprinted region
     # o = get_overlapped_reads(reads, imprinted_regions)  # 86
     # save_objects("../data/chr19_snps.obj", all_snps)
