@@ -6,6 +6,9 @@ __date__ = 08/02/2018
 """
 import pysam
 import time
+import threading
+import multiprocessing
+from multiprocessing import Process
 from src.handlefiles import save_objects, load_objects
 from src.snps import load_VCF
 
@@ -51,7 +54,7 @@ class NanoporeRead:
     """
 
     def __init__(self, sequencer_id, chrom, start, end, cigar_tuples,
-                 reference_pos, matches_pos, quality, fastq_seq=None,
+                 reference_pos, fragments, matches_pos, quality, fastq_seq=None,
                  rs=None):
         # Basic attr
         self.id = sequencer_id
@@ -60,6 +63,7 @@ class NanoporeRead:
         self.cigar = cigar_tuples  # CIGAR value
         self.quality = quality  # mapping quality
         self.positions = reference_pos  # genomic positions of read aligned fragments (ref pos, ref pos)
+        self.fragments = fragments
         self.aligned_pairs = matches_pos  # dict {ref pos: seq index}
         self.seq = fastq_seq
         self.raw_signal = rs
@@ -85,8 +89,15 @@ class NanoporeRead:
         Find SNPs the read span.
         Extract allele on these SNP positions.
         """
-        self.bases = {snp_id: self.get_base(snp.pos) for (snp_id, snp) in enumerate(SNPs_data)
-                      if snp.chr == self.chr and snp.pos in self.positions}
+        start = time.clock()
+        for snp_id, snp in enumerate(SNPs_data):
+            for region in self.fragments:  # aligned gapless blocks of a read
+                if snp.chr == self.chr and region[0] <= snp.pos-1 <= region[1] and self.seq is not None:
+                    base = self.get_base(snp.pos-1)  # pysam 0-base, snp.pos 1-base
+                    if base is not None:
+                        self.bases[snp_id] = base
+        elapsed = (time.clock() - start)
+        print("detect_snps: Time used:", elapsed)
 
     def get_base(self, pos):
         """
@@ -94,7 +105,10 @@ class NanoporeRead:
         :param pos: ref genomic position
         :return: (str) a bases on sequence
         """
-        return self.seq[self.aligned_pairs[pos]]
+        try:
+            return self.seq[self.aligned_pairs[pos]]
+        except KeyError:
+            print("SNP position", pos, "not in read aligned pairs")
 
     def get_snp_id(self):
         """Return a list of snp_id"""
@@ -144,7 +158,7 @@ def load_sam_file(samfile, chr, snps):
     :return:
     """
     reads = []
-    sf = pysam.AlignmentFile(samfile, "r")
+    sf = pysam.AlignmentFile(samfile[0:100], "r")
     for read in sf:
         # cigartupples = None means read unmapped
         if read.cigartuples is not None and \
@@ -156,12 +170,12 @@ def load_sam_file(samfile, chr, snps):
                              read.reference_start,
                              read.reference_end,
                              read.cigartuples,
-                             read.get_reference_positions(),
+                             read.get_reference_positions(),  # > 10000
+                             read.get_blocks(),  # 700 - 2900
                              list_to_dict(read.get_aligned_pairs(matches_only=True)),
                              read.mapping_quality,
                              fastq_seq=read.query_sequence)
             r.detect_snps(snps)
-            #print(r.bases)  TODO: check if correct
             if not r.bases == []:
                 reads.append(r)
     sf.close()
@@ -206,7 +220,6 @@ def count_bases(reads, all_snps):
                 alt += 1
             else:
                 other += 1
-
     print((ref + alt) / (ref + alt + other))
     print(other / (ref + alt + other))
 
@@ -216,21 +229,33 @@ def list_to_dict(l):
     return {k: v for v, k in l}
 
 
-def main():
+def get_indels_regions(read):
+    indels_blocks = []
+    aligned_regions = read.get_blocks()
+    start = read.reference_start; end = read.reference_end
+    indels_blocks.append((start, aligned_regions[0][0]))
+    for i in range(len(aligned_regions)-1):
+        indels_blocks.append((aligned_regions[i][1], aligned_regions[i+1][0]))
+    indels_blocks.append((aligned_regions[-1][1], end))
+    return indels_blocks
+
+
+if __name__ == "__main__":
     # imprinted_regions = read_imprinted_data("../data/ip_gene_pos.txt")
     all_snps = load_VCF("../data/chr19.vcf")  # 50745 SNPS
     start = time.clock()
     reads = load_sam_file("../data/chr19_merged.sam", "19", all_snps)  # 8969 filtered READS out of 50581 total rs
     elapsed = (time.clock() - start)
     print("load_sam_file: Time used:", elapsed)
-    print(len(reads))  # 8850  # 8849  # 8075: only matches ref or alt
+    print(len(reads))  # 8850  # 8849  # 8075: only matches ref or alt  # 9782, including non-snps reads
     count_bases(reads, all_snps)
+    save_objects("../data/all_reads.obj", reads)
     # Find READS overlapping with any human imprinted region
     # o = get_overlapped_reads(reads, imprinted_regions)  # 86
     # save_objects("../data/chr19_snps.obj", all_snps)
-    save_objects("../data/chr19_reads_pysam.obj", reads)
     # save_objects("../data/chr19_reads_ir_matched.obj", o)
 
-
-if __name__ == "__main__":
-    main()
+    p = Process(target=load_sam_file, args=("../data/chr19_merged.sam", "19", all_snps))
+    p = Process(target=load_sam_file, args=("../data/chr19_merged.sam", "19", all_snps))
+    p.start()
+    p.join()
