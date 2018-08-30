@@ -6,10 +6,7 @@ __date__ = 08/02/2018
 """
 import pysam
 import time
-import threading
-import multiprocessing
-from multiprocessing import Process
-from src.handlefiles import save_objects, load_objects
+from src.handlefiles import save_objects
 from src.snps import load_VCF
 
 
@@ -53,22 +50,24 @@ class NanoporeRead:
     A nanopore sequencing snp instance. NA12878 data.
     """
 
-    def __init__(self, sequencer_id, chrom, start, end, cigar_tuples,
-                 reference_pos, fragments, matches_pos, quality, fastq_seq=None,
+    def __init__(self, sequencer_id, chrom, start, end, length,
+                 cigar_tuples, matches_pos, quality, fastq_seq=None,
                  rs=None):
         # Basic attr
         self.id = sequencer_id
         self.chr = chrom
-        self.start = start; self.end = end  # genomic position of first read base
-        self.cigar = cigar_tuples  # CIGAR value
+        self.start = start; self.end = end; self.len = length  # genomic position of first read base
+        self.cigar = cigar_tuples
         self.quality = quality  # mapping quality
-        self.positions = reference_pos  # genomic positions of read aligned fragments (ref pos, ref pos)
-        self.fragments = fragments
         self.aligned_pairs = matches_pos  # dict {ref pos: seq index}
         self.seq = fastq_seq
         self.raw_signal = rs
+
         # SNP attr
-        self.bases = {}  # bases of read on SNPS loci. a mini haplotype, {pos: read base, snp2: base, snp3: base}
+        self.bases = {}
+        self.snps = []
+        self.snps_id = []
+
         # Imprinted regions attr
         self.if_ir = False
         self.region = None
@@ -78,7 +77,7 @@ class NanoporeRead:
         """Decide if the snp has at least one base overlapping with any imprinted region."""
         for region in ip_regions:
             if self.chr == region.chr:
-                if region.start <= self.start <= region.end or region.start <= self.end <= region.end:
+                if region.start <= self.start+1 <= region.end or region.start <= self.end+1 <= region.end:
                     self.region = region
                     self.gene_name = region.gene
                     self.if_ir = True
@@ -89,15 +88,13 @@ class NanoporeRead:
         Find SNPs the read span.
         Extract allele on these SNP positions.
         """
-        start = time.clock()
         for snp_id, snp in enumerate(SNPs_data):
-            for region in self.fragments:  # aligned gapless blocks of a read
-                if snp.chr == self.chr and region[0] <= snp.pos-1 <= region[1] and self.seq is not None:
-                    base = self.get_base(snp.pos-1)  # pysam 0-base, snp.pos 1-base
-                    if base is not None:
-                        self.bases[snp_id] = base
-        elapsed = (time.clock() - start)
-        print("detect_snps: Time used:", elapsed)
+            if snp.chr == self.chr and self.start <= snp.pos-1 <= self.end:
+                base = self.get_base(snp.pos-1)
+                if base is not None:
+                    self.bases[snp_id] = base
+                    self.snps.append(snp)
+                    self.snps_id.append(snp_id)
 
     def get_base(self, pos):
         """
@@ -108,13 +105,16 @@ class NanoporeRead:
         try:
             return self.seq[self.aligned_pairs[pos]]
         except KeyError:
-            print("SNP position", pos, "not in read aligned pairs")
+            pass
+        except IndexError:
+            pass
 
     def get_snp_id(self):
         """Return a list of snp_id"""
         return list(self.bases.keys())
 
     def get_seq(self):
+        """Return sequence of the read."""
         return self.seq
 
     def get_base_by_snpID(self, snp_idx):
@@ -149,29 +149,29 @@ class NanoporeRead:
         return self.id != other.id or self.bases != other.bases
 
 
-def load_sam_file(samfile, chr, snps):
+def load_sam_file(samfile, snps, chrom, min_qlt=10, min_len=10000):
     """
-
-    :param samfile:
-    :param chr:
-    :param snps:
-    :return:
+    Extract reads information from a given SAM file.
+    :param samfile: (str) sam file path
+    :param snps: (SNP) a list of SNP objects. SNP data on the chromosome
+    :param chrom: (int/str) chromosome number
+    :param min_qlt: (int) minimum mapping quality
+    :param min_len: (int) minimum query length or query alignment length
+    :return: a list of NanoporeRead objects
     """
     reads = []
-    sf = pysam.AlignmentFile(samfile[0:100], "r")
+    sf = pysam.AlignmentFile(samfile, "r")
     for read in sf:
-        # cigartupples = None means read unmapped
-        if read.cigartuples is not None and \
-                read.reference_name == ("chr" + chr) \
-                and 10 < read.mapping_quality \
-                and 10000 <= read.query_alignment_length:
+        if read.cigartuples is not None \
+                and read.reference_name == ("chr" + str(chrom)) \
+                and min_qlt < read.mapping_quality \
+                and min_len <= read.query_length:
             r = NanoporeRead(read.query_name,
                              read.reference_name,
                              read.reference_start,
                              read.reference_end,
+                             read.infer_read_length(),
                              read.cigartuples,
-                             read.get_reference_positions(),  # > 10000
-                             read.get_blocks(),  # 700 - 2900
                              list_to_dict(read.get_aligned_pairs(matches_only=True)),
                              read.mapping_quality,
                              fastq_seq=read.query_sequence)
@@ -205,9 +205,8 @@ def locate_snps(reads, snps):
 
 def count_bases(reads, all_snps):
     """
-    :param reads:
-    :param all_snps:
-    :return:
+    :param reads: a list of NanoporeRead objects
+    :param all_snps: a list of SNP objects
     """
     ref = 0
     alt = 0
@@ -220,8 +219,8 @@ def count_bases(reads, all_snps):
                 alt += 1
             else:
                 other += 1
-    print((ref + alt) / (ref + alt + other))
-    print(other / (ref + alt + other))
+    print("ref+alt base num/total base num ", (ref + alt) / (ref + alt + other))
+    print("other base num/total base num ", other / (ref + alt + other))
 
 
 def list_to_dict(l):
@@ -230,6 +229,7 @@ def list_to_dict(l):
 
 
 def get_indels_regions(read):
+    """Get indel region start and end positions of a read."""
     indels_blocks = []
     aligned_regions = read.get_blocks()
     start = read.reference_start; end = read.reference_end
@@ -241,21 +241,19 @@ def get_indels_regions(read):
 
 
 if __name__ == "__main__":
-    # imprinted_regions = read_imprinted_data("../data/ip_gene_pos.txt")
-    all_snps = load_VCF("../data/chr19.vcf")  # 50745 SNPS
+    imprinted_regions = read_imprinted_data("../data/ip_gene_pos.txt")
+    all_snps = load_VCF("../data/chr19.vcf")
+
     start = time.clock()
-    reads = load_sam_file("../data/chr19_merged.sam", "19", all_snps)  # 8969 filtered READS out of 50581 total rs
+    reads = load_sam_file("../data/chr19_merged.sam", "19", all_snps, 10, 10000)
     elapsed = (time.clock() - start)
     print("load_sam_file: Time used:", elapsed)
-    print(len(reads))  # 8850  # 8849  # 8075: only matches ref or alt  # 9782, including non-snps reads
-    count_bases(reads, all_snps)
-    save_objects("../data/all_reads.obj", reads)
-    # Find READS overlapping with any human imprinted region
-    # o = get_overlapped_reads(reads, imprinted_regions)  # 86
-    # save_objects("../data/chr19_snps.obj", all_snps)
-    # save_objects("../data/chr19_reads_ir_matched.obj", o)
 
-    p = Process(target=load_sam_file, args=("../data/chr19_merged.sam", "19", all_snps))
-    p = Process(target=load_sam_file, args=("../data/chr19_merged.sam", "19", all_snps))
-    p.start()
-    p.join()
+    count_bases(reads, all_snps)
+
+    save_objects("../data/snps.obj", all_snps)
+    save_objects("../data/reads_no_indels.obj", reads)
+
+    # Find READS overlapping with any human imprinted region
+    o = get_overlapped_reads(reads, imprinted_regions)
+    save_objects("../data/chr19_reads_ir_matched.obj", o)
