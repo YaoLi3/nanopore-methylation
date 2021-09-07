@@ -1,8 +1,8 @@
 # nanopore-methylation
-	By adapting EM algorithm in a Hidden Markov Model (HMM), we are able to cluster nanopore reads into their parental　haplotypes. 
-	One can choose use all nanopore data from the chromosome or reads mapped to imprinted regions. 
-	By analysing nanopore reads raw signals, there should be one haplotype group shows where methylation happened. 
-	And we are able to located methylated bases.
+By adapting EM algorithm in a Hidden Markov Model (HMM), we are able to cluster nanopore reads into their parental　haplotypes. 
+One can choose use all nanopore data from the chromosome or reads mapped to imprinted regions. 
+By analysing nanopore reads raw signals, there should be one haplotype group shows where methylation happened. 
+And we are able to located methylated bases.
 
 ## Handle NA12878 data
 
